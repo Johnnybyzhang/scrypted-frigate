@@ -1,15 +1,15 @@
 # Security
 
-- The plugin never reads, stores, transmits, or logs the G4 rotating key.
-- Frigate and MQTT credentials use Scrypted password settings.
-- go2rtc credentials are sent with HTTP Basic authorization when configured.
-- URLs and FFmpeg arguments are never logged because they may contain credentials or ephemeral HomeKit session tokens.
-- Intercom ingress uses 192-bit random single-use tokens, is served with no-store/nosniff headers, and rejects a second consumer.
-- MQTT payloads larger than 64 KiB are ignored.
-- Retained doorbell/tamper MQTT packets are ignored.
-- Frigate topics are API-derived. Only Doorbell children accept three explicit external mappings: availability, press, and tamper.
-- No MQTT wildcard expansion, JSON expression evaluation, shell template, Docker socket, or host service control exists.
-- Hardware scripts constrain the local key destination to ignored `private/`, reject symlinks, enforce owner-only permissions, and print only fingerprints.
-- `.npmignore` excludes hardware tooling, tests, fixtures, private state, environment files, logs, and artifacts from the plugin package.
+Scrypted stores the Frigate token, MQTT password, and go2rtc password. Their settings use password fields in the management UI.
 
-The local insecure HTTP endpoint is intentionally limited to the LAN because go2rtc/FFmpeg must consume a live stream without trusting Scrypted's self-signed certificate. The high-entropy path token is the stream capability. Operators should keep Scrypted and go2rtc on a trusted network.
+Talkback uses a random 192-bit URL token. The HTTP handler accepts one connection for that token, sets `no-store` and `nosniff` headers, and removes the token when playback stops. URLs and FFmpeg arguments stay out of plugin logs because HomeKit sessions can place short-lived credentials in them.
+
+The MQTT router accepts payloads up to 64 KiB. It ignores retained press and tamper messages. It also rejects duplicate edge events when the payload or MQTT packet supplies a stable id.
+
+Frigate motion and audio topics come from the API camera name and MQTT prefix. A Doorbell can add three exact topics for availability, press, and tamper. The router uses no wildcard subscriptions.
+
+The talkback FFmpeg arguments are fixed in code. Camera names and setting values are not inserted into shell commands. The process starts through `child_process.spawn` with an argument array.
+
+The npm package contains the compiled plugin, source map, Scrypted zip, readme, changelog, license, status file, and package metadata. `.npmignore` removes source files, tests, E2E tools, logs, credentials, and generated artifacts.
+
+go2rtc reaches the single-use talkback URL over Scrypted's local HTTP endpoint. Keep Scrypted and go2rtc on a trusted network or place that traffic on a private service network.

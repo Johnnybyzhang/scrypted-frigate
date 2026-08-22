@@ -3,7 +3,7 @@ out/
 .env*
 .github/
 docs/
-hardware/
+e2e/
 private/
 test/
 src/

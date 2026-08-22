@@ -58,6 +58,8 @@ export interface Go2rtcConfig {
   streamName: string;
 }
 
+export type TalkbackTargetCodec = 'pcma' | 'opus';
+
 export interface CameraStateSink {
   setMotion(active: boolean): void;
   setAudio(active: boolean): void;

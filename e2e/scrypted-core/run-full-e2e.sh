@@ -1,9 +1,9 @@
 #!/bin/sh
-# Bare native multi-camera Scrypted Core/HomeKit boundary E2E. No containers.
+# Bare native multi-camera Scrypted Core and HomeKit E2E.
 set -eu
 
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-project_dir=$(CDPATH= cd -- "$script_dir/../../.." && pwd)
+project_dir=$(CDPATH= cd -- "$script_dir/../.." && pwd)
 if [ -n "${GO2RTC_SOURCE_DIR:-}" ]; then
   go2rtc_repo=$GO2RTC_SOURCE_DIR
   test -d "$go2rtc_repo/.git" || { echo "GO2RTC_SOURCE_DIR is not a git checkout: $go2rtc_repo" >&2; exit 2; }
@@ -62,10 +62,10 @@ fi
 config=$runtime/go2rtc.yaml
 talkback=$runtime/talkback
 snapshot=$runtime/snapshot.jpg
-tone=$runtime/tone.wav
+tone=$runtime/tone.opus
 sed \
   -e "s|@FFMPEG@|$ffmpeg_path|g" \
-  -e "s|@TALKBACK_SINK@|$project_dir/hardware/e2e/talkback-sink.sh|g" \
+  -e "s|@TALKBACK_SINK@|$project_dir/e2e/talkback-sink.sh|g" \
   -e "s|@TALKBACK_OUTPUT@|$talkback|g" \
   "$script_dir/go2rtc.yaml.template" > "$config"
 chmod 600 "$config"
@@ -73,7 +73,8 @@ chmod 600 "$config"
 "$ffmpeg_path" -hide_banner -loglevel error -y \
   -f lavfi -i testsrc2=size=1280x720:rate=1 -frames:v 1 -q:v 2 "$snapshot"
 "$ffmpeg_path" -hide_banner -loglevel error -y \
-  -f lavfi -i sine=frequency=880:sample_rate=16000 -t 8 -c:a pcm_s16le "$tone"
+  -f lavfi -i sine=frequency=880:sample_rate=48000 -t 8 \
+  -c:a libopus -application:a lowdelay -frame_duration 10 -ar 48000 -ac 2 -b:a 32k "$tone"
 
 fixture_pid=
 go2rtc_pid=
@@ -188,17 +189,28 @@ side_sub=$($harness_node -p "require('$runtime_json').rebroadcast.sideYard.sub")
 "$ffprobe_path" -v error -rtsp_transport tcp -read_intervals '%+3' -show_streams -of json "$side_main" > "$evidence/rebroadcast-side-main.json"
 "$ffprobe_path" -v error -rtsp_transport tcp -read_intervals '%+3' -show_streams -of json "$side_sub" > "$evidence/rebroadcast-side-sub.json"
 
-test -s "$talkback.alaw"
+test -s "$talkback.pcma"
+talkback_bytes=$(wc -c < "$talkback.pcma" | tr -d ' ')
 "$ffmpeg_path" -hide_banner -loglevel error -y \
-  -f alaw -ar 8000 -ac 1 -i "$talkback.alaw" "$evidence/talkback.wav"
-"$ffprobe_path" -v error -show_streams -show_format -of json \
-  "$evidence/talkback.wav" > "$evidence/talkback.json"
+  -f alaw -ar 8000 -ac 1 -i "$talkback.pcma" \
+  -c:a pcm_s16le "$evidence/talkback.wav"
+"$ffprobe_path" -v error -show_entries stream=codec_name,sample_rate,channels \
+  -of default=noprint_wrappers=1 "$evidence/talkback.wav" > "$evidence/talkback-probe.txt"
+grep -q 'codec_name=pcm_s16le' "$evidence/talkback-probe.txt"
+grep -q 'sample_rate=8000' "$evidence/talkback-probe.txt"
+grep -q 'channels=1' "$evidence/talkback-probe.txt"
+printf '{"sourceCodec":"opus","targetCodec":"pcma","bytes":%s,"sampleRate":8000}\n' \
+  "$talkback_bytes" > "$evidence/talkback.json"
+if grep -q 'ffmpeg:http://.*intercom' "$runtime/go2rtc.log"; then
+  echo 'go2rtc started an unexpected talkback transcoder' >&2
+  exit 4
+fi
 
 printf '%s\n' "$runtime" > "$artifacts/latest-run.txt"
-printf 'Scrypted Core/HomeKit boundary E2E: PASS\n'
+printf 'Scrypted Core and HomeKit E2E: PASS\n'
 printf '  two cameras: API discovery, checkbox remove/re-add, stable ids\n'
 printf '  media: Scrypted source paths, snapshots, Rebroadcast main/sub probes\n'
 printf '  events: derived Frigate motion/audio plus doorbell/tamper MQTT\n'
-printf '  talkback: Scrypted Intercom -> go2rtc -> PCMA sink\n'
+printf '  talkback: HomeKit-style Opus input -> plugin PCMA stream -> direct go2rtc route\n'
 printf '  HomeKit: plugin loaded, camera mixins active, standalone accessories configured\n'
 printf '  artifacts: %s\n' "$runtime"

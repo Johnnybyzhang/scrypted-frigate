@@ -76,12 +76,12 @@ side = cameras.find(camera => camera.nativeId === stableIds.side);
 assert(front && side, 're-added cameras did not retain stable native ids');
 
 for (const [key, value] of Object.entries({
-  deviceName: 'Aqara G4 E2E',
+  deviceName: 'Front Door E2E',
   deviceType: 'Doorbell',
   enableIntercom: true,
-  deviceAvailabilityTopic: 'aqara/g4/availability',
-  doorbellTopic: 'aqara/g4/event/doorbell_ring',
-  tamperTopic: 'aqara/g4/event/tamper',
+  deviceAvailabilityTopic: 'site/front_door/availability',
+  doorbellTopic: 'site/front_door/doorbell',
+  tamperTopic: 'site/front_door/tamper',
 }))
   await front.putSetting(key, value);
 await side.putSetting('deviceName', 'Side Yard E2E');

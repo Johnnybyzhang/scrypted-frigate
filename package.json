@@ -1,8 +1,8 @@
 {
   "name": "@johnnybyzhang/scrypted-frigate",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Environment-agnostic multi-camera Frigate bridge for Scrypted Core and HomeKit Secure Video.",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "author": {
     "name": "Johnny Zhang",
     "url": "https://github.com/johnnybyzhang"
@@ -40,17 +40,15 @@
     "scrypted-deploy": "scrypted-deploy",
     "scrypted-package-json": "scrypted-package-json",
     "check": "tsc --noEmit",
-    "check:shell": "sh -n hardware/sync-g4-key.sh hardware/preflight-g4.sh hardware/e2e/talkback-sink.sh hardware/e2e/verify-go2rtc.sh hardware/e2e/scrypted-core/run-full-e2e.sh",
+    "check:shell": "sh -n e2e/talkback-sink.sh e2e/verify-go2rtc.sh e2e/scrypted-core/run-full-e2e.sh",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e:go2rtc": "sh hardware/e2e/verify-go2rtc.sh",
-    "test:e2e:go2rtc:matrix": "GO2RTC_E2E_VERSION=v1.9.10 sh hardware/e2e/verify-go2rtc.sh && GO2RTC_E2E_VERSION=v1.9.14 sh hardware/e2e/verify-go2rtc.sh",
-    "test:e2e:scrypted-core": "sh hardware/e2e/scrypted-core/run-full-e2e.sh",
+    "test:e2e:go2rtc": "sh e2e/verify-go2rtc.sh",
+    "test:e2e:go2rtc:matrix": "GO2RTC_E2E_VERSION=v1.9.10 sh e2e/verify-go2rtc.sh && GO2RTC_E2E_VERSION=v1.9.14 sh e2e/verify-go2rtc.sh",
+    "test:e2e:scrypted-core": "sh e2e/scrypted-core/run-full-e2e.sh",
     "verify": "npm run check && npm run check:shell && npm test && npm run build && npm audit --omit=dev",
     "verify:full": "npm run verify && npm run test:e2e:go2rtc:matrix && npm run test:e2e:scrypted-core && npm run package:inspect",
-    "package:inspect": "npm publish --dry-run --access public",
-    "g4:key:sync": "sh hardware/sync-g4-key.sh",
-    "g4:preflight": "npm run g4:key:sync && sh hardware/preflight-g4.sh"
+    "package:inspect": "npm publish --dry-run --access public"
   },
   "scrypted": {
     "name": "Frigate Camera Bridge",

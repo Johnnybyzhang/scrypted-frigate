@@ -41,7 +41,10 @@ describe.skipIf(!enabled)('live go2rtc intercom boundary', () => {
       server.once('error', reject);
       server.listen(0, '127.0.0.1', resolve);
     });
-    closeServer = () => new Promise(resolve => server.close(() => resolve()));
+    closeServer = () => new Promise(resolve => {
+      server.closeAllConnections();
+      server.close(() => resolve());
+    });
     const address = server.address();
     if (!address || typeof address === 'string')
       throw new Error('test HTTP server has no TCP address');
@@ -50,17 +53,21 @@ describe.skipIf(!enabled)('live go2rtc intercom boundary', () => {
       apiUrl: process.env.GO2RTC_E2E_URL!,
       streamName: process.env.GO2RTC_E2E_STREAM!,
     }));
-    await client.play(`http://127.0.0.1:${address.port}/intercom.wav`);
-    await new Promise(resolve => setTimeout(resolve, 5000));
+    await client.play(`http://127.0.0.1:${address.port}/intercom.wav`, 'pcma');
+    await waitForOutput(`${talkbackBase}.pcma`);
     await client.stop();
 
-    const deadline = Date.now() + 5000;
-    while (Date.now() < deadline) {
-      if (existsSync(`${talkbackBase}.alaw`) && statSync(`${talkbackBase}.alaw`).size > 0)
-        break;
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-    expect(existsSync(`${talkbackBase}.alaw`)).toBe(true);
-    expect(statSync(`${talkbackBase}.alaw`).size).toBeGreaterThan(0);
+    expect(existsSync(`${talkbackBase}.pcma`)).toBe(true);
+    expect(statSync(`${talkbackBase}.pcma`).size).toBeGreaterThan(0);
   }, 15_000);
 });
+
+async function waitForOutput(path: string): Promise<void> {
+  const deadline = Date.now() + 5000;
+  while (Date.now() < deadline) {
+    if (existsSync(path) && statSync(path).size > 0)
+      return;
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  throw new Error(`go2rtc did not write ${path}`);
+}

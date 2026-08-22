@@ -1,33 +1,32 @@
 # Implementation status
 
-## Implemented
+## Version 0.0.2
 
-- Environment-agnostic Scrypted `DeviceProvider` with Frigate API discovery and stable multi-camera child identifiers.
-- Provider-level Frigate, MQTT, and go2rtc connections plus a discovered-camera multi-select for add/remove.
-- API-derived go2rtc main/sub stream names and metadata, RTSP restream URLs, Frigate snapshot endpoint, MQTT prefix, motion topics, and audio topics.
-- Shared MQTT client/router across imported cameras.
-- Per-camera name, Camera/Doorbell type, and intercom enablement; doorbell press/tamper fields and interfaces are conditional.
-- `VideoCamera`, `Camera`, `MotionSensor`, `Online`, and `Settings` on every imported camera; conditional `AudioSensor`, `BinarySensor`, `TamperSensor`, and `Intercom`.
-- Retained edge rejection, MQTT QoS identity propagation, bounded payloads, pulse deduplication, and transport isolation.
-- Scrypted runtime FFmpeg conversion, single-use intercom HTTP ingress, go2rtc stream-to-camera API, and deterministic stop/cleanup.
-- External owner-only rotated-key synchronization and read-only G4 preflight tooling. Neither is packaged with or visible to the plugin.
+The provider discovers Frigate cameras through `/api/config` and `/api/go2rtc/streams`. Users select which cameras Scrypted creates. Each camera keeps a stable native id.
 
-## Verified on 2026-08-23
+Shared Frigate, MQTT, and go2rtc settings live on the provider. Camera name, type, and intercom settings live on each camera. Doorbell event topics appear on Doorbell devices.
 
-- Type check and unit/contract suite: 37 passed; one live go2rtc test is intentionally delegated to the E2E harness.
-- Fresh native Scrypted Core 0.143.0 with Core UI, HomeKit, Rebroadcast, WebRTC, Snapshot, and Diagnostics plugins.
-- Two Frigate cameras discovered from `/api/config` and `/api/go2rtc/streams`.
-- Selector lifecycle: both children added, `side_yard` unchecked and removed, discovery inventory preserved, then re-added with the same native id.
-- Layout: provider contains no Frigate topic or per-camera stream settings; device pages contain no MQTT broker or shared API credentials; ordinary Camera hides Doorbell Events and doorbell/tamper interfaces.
-- Four live Scrypted Rebroadcast paths probed: front 1920x1080 H.264 + AAC 16 kHz and 640x360 H.264; side 1280x720 and 640x360 H.264.
-- Scrypted WebUI rendered live video for both imported cameras.
-- Frigate-derived MQTT motion on both cameras, audio detection on the enabled camera, and external doorbell/tamper pulses passed.
-- Scrypted `Intercom` routed through the plugin and go2rtc to a 4.2-second PCMA 8 kHz capture.
-- Both cameras received the HomeKit mixin in standalone accessory mode; the Doorbell exposed the HomeKit doorbell surface while the ordinary camera did not.
-- Native go2rtc v1.9.10/v1.9.14 media and backchannel matrix, reproducible build, dependency audit, and package inspection remain part of `verify:full`.
+Every imported camera implements video, snapshots, motion, online state, and settings. Frigate audio detection adds an audio sensor. Doorbell mode adds press and tamper sensors. Intercom appears when it is enabled and go2rtc is configured.
 
-## Proof boundary
+One MQTT connection handles all selected cameras. The router derives Frigate topics from the API response and subscribes to exact Doorbell topics.
 
-The current E2E intentionally ends at the Scrypted Core/HomeKit-plugin boundary. It does not claim Apple Home pairing, physical G4 speaker audibility, or a user-visible HKSV timeline recording. It does not deploy to or mutate a real Frigate/go2rtc/MQTT/G4 service.
+The HomeKit plugin decrypts its AAC-ELD or Opus microphone stream before calling the bridge. The bridge's FFmpeg process decodes that input and encodes a PCMA camera target. It retries with low-delay Opus if go2rtc rejects PCMA. go2rtc reads PCMA directly. The Opus retry uses a copy-only FFmpeg remux inside go2rtc. The bridge handles every codec conversion. Both input paths use a 32-byte probe, zero analysis time, no input buffer, and low-delay flags.
 
-Physical G4 key preflight and Apple Home acceptance remain separate, explicit operations. No private key material or local server identity is part of the public package or repository.
+## Verification
+
+`npm run verify:full` runs these checks:
+
+- TypeScript type checking
+- Unit and contract tests
+- Production build
+- Production dependency audit
+- go2rtc v1.9.10 and v1.9.14 media tests
+- Two-camera Scrypted Core test
+- Rebroadcast probes for four streams
+- MQTT motion, audio, press, and tamper events
+- HomeKit-style Opus source to PCMA camera target
+- Direct PCMA routing and copy-only Opus remuxing in go2rtc
+- HomeKit setup for Camera and Doorbell devices
+- npm publish preview
+
+The Home app checklist is in [docs/HKSV_ACCEPTANCE.md](docs/HKSV_ACCEPTANCE.md).

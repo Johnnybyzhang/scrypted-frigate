@@ -198,9 +198,9 @@ export function cameraSettings(config: CameraConfig, camera: DiscoveredCamera): 
   ];
   if (config.deviceType === ScryptedDeviceType.Doorbell) {
     settings.push(
-      { key: cameraSettingKeys.deviceAvailabilityTopic, title: 'Device Availability Topic', group: 'Doorbell Events', value: config.deviceAvailabilityTopic, placeholder: 'aqara/g4/availability' },
-      { key: cameraSettingKeys.doorbellTopic, title: 'Doorbell Press Topic', group: 'Doorbell Events', value: config.doorbellTopic, placeholder: 'aqara/g4/event/doorbell_ring' },
-      { key: cameraSettingKeys.tamperTopic, title: 'Tamper Topic', group: 'Doorbell Events', value: config.tamperTopic, placeholder: 'aqara/g4/event/tamper' },
+      { key: cameraSettingKeys.deviceAvailabilityTopic, title: 'Device Availability Topic', group: 'Doorbell Events', value: config.deviceAvailabilityTopic, placeholder: 'site/front_door/availability' },
+      { key: cameraSettingKeys.doorbellTopic, title: 'Doorbell Press Topic', group: 'Doorbell Events', value: config.doorbellTopic, placeholder: 'site/front_door/doorbell' },
+      { key: cameraSettingKeys.tamperTopic, title: 'Tamper Topic', group: 'Doorbell Events', value: config.tamperTopic, placeholder: 'site/front_door/tamper' },
       { key: cameraSettingKeys.doorbellPulseMs, title: 'Doorbell Pulse (ms)', group: 'Doorbell Events', value: config.doorbellPulseMs, type: 'number' },
       { key: cameraSettingKeys.tamperPulseMs, title: 'Tamper Pulse (ms)', group: 'Doorbell Events', value: config.tamperPulseMs, type: 'number' },
     );

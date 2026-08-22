@@ -70,7 +70,7 @@ describe('MqttBridgeEvents routing', () => {
     events.onMessage('site-frigate/front_door/audio/all', Buffer.from('ON'), { retain: false });
     events.onMessage('site-frigate/side_yard/audio/all', Buffer.from('ON'), { retain: false });
     events.onMessage('site-frigate/available', Buffer.from('online'), { retain: true });
-    events.onMessage('aqara/g4/availability', Buffer.from('offline'), { retain: true });
+    events.onMessage('site/front_door/availability', Buffer.from('offline'), { retain: true });
 
     expect(front.calls.motion).toEqual([true]);
     expect(side.calls.motion).toEqual([true]);
@@ -100,10 +100,10 @@ describe('MqttBridgeEvents routing', () => {
     ]);
     const payload = Buffer.from('{"id":"press-1"}');
 
-    events.onMessage('aqara/g4/event/doorbell_ring', payload, { retain: true });
-    events.onMessage('aqara/g4/event/tamper', payload, { retain: true });
-    events.onMessage('aqara/g4/event/doorbell_ring', payload, { retain: false });
-    events.onMessage('aqara/g4/event/tamper', payload, { retain: false });
+    events.onMessage('site/front_door/doorbell', payload, { retain: true });
+    events.onMessage('site/front_door/tamper', payload, { retain: true });
+    events.onMessage('site/front_door/doorbell', payload, { retain: false });
+    events.onMessage('site/front_door/tamper', payload, { retain: false });
     events.onMessage('site/side_yard/doorbell', payload, { retain: false });
 
     expect(front.calls.doorbell).toEqual(['id:press-1']);
@@ -122,9 +122,9 @@ describe('MqttBridgeEvents routing', () => {
     }]);
     const payload = Buffer.from('{"kind":"doorbell_ring","action":"button_click"}');
 
-    events.onMessage('aqara/g4/event/doorbell_ring', payload, { retain: false, dup: false, messageId: 41 });
-    events.onMessage('aqara/g4/event/doorbell_ring', payload, { retain: false, dup: true, messageId: 41 });
-    events.onMessage('aqara/g4/event/doorbell_ring', payload, { retain: false, dup: false, messageId: 42 });
+    events.onMessage('site/front_door/doorbell', payload, { retain: false, dup: false, messageId: 41 });
+    events.onMessage('site/front_door/doorbell', payload, { retain: false, dup: true, messageId: 41 });
+    events.onMessage('site/front_door/doorbell', payload, { retain: false, dup: false, messageId: 42 });
 
     expect(front.calls.doorbell).toEqual(['mqtt:0:41', 'mqtt:0:41', 'mqtt:0:42']);
   });

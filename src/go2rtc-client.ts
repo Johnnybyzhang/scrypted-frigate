@@ -1,11 +1,15 @@
-import type { Go2rtcConfig } from './types';
+import type { Go2rtcConfig, TalkbackTargetCodec } from './types';
 import { authorizationHeaders, fetchWithTimeout, HttpStatusError } from './http';
+
+const OPUS_COPY_INPUT = '-probesize 32 -analyzeduration 0 -fflags nobuffer -flags low_delay -i {input}';
 
 export class Go2rtcClient {
   constructor(private readonly config: Go2rtcConfig) {}
 
-  async play(intercomSourceUrl: string, options: { finiteFile?: boolean } = {}): Promise<void> {
-    const source = `ffmpeg:${intercomSourceUrl}#audio=pcma${options.finiteFile ? '#input=file' : ''}`;
+  async play(intercomSourceUrl: string, targetCodec: TalkbackTargetCodec): Promise<void> {
+    const source = targetCodec === 'pcma'
+      ? intercomSourceUrl
+      : `ffmpeg:${intercomSourceUrl}#audio=copy#input=${encodeURIComponent(OPUS_COPY_INPUT)}`;
     await this.post(source);
   }
 

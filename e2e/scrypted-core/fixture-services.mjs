@@ -26,14 +26,14 @@ const frigateConfig = {
       detect: { width: 640, height: 360 },
       live: {
         streams: {
-          'Main Stream': 'Scrypted-E2E-G4',
-          'Low Resolution Stream': 'Scrypted-E2E-G4-Sub',
+          'Main Stream': 'Scrypted-E2E-Doorbell',
+          'Low Resolution Stream': 'Scrypted-E2E-Doorbell-Sub',
         },
       },
       ffmpeg: {
         inputs: [
-          { path: 'rtsp://127.0.0.1:8554/Scrypted-E2E-G4', roles: ['record'] },
-          { path: 'rtsp://127.0.0.1:8554/Scrypted-E2E-G4-Sub', roles: ['detect', 'audio'] },
+          { path: 'rtsp://127.0.0.1:8554/Scrypted-E2E-Doorbell', roles: ['record'] },
+          { path: 'rtsp://127.0.0.1:8554/Scrypted-E2E-Doorbell-Sub', roles: ['detect', 'audio'] },
         ],
       },
     },
@@ -57,8 +57,8 @@ const frigateConfig = {
   },
 };
 const go2rtcStreams = {
-  'Scrypted-E2E-G4': streamInfo(1920, 1080, 'aac', 16000),
-  'Scrypted-E2E-G4-Sub': streamInfo(640, 360),
+  'Scrypted-E2E-Doorbell': streamInfo(1920, 1080, 'aac', 16000),
+  'Scrypted-E2E-Doorbell-Sub': streamInfo(640, 360),
   'Scrypted-E2E-Side': streamInfo(1280, 720),
   'Scrypted-E2E-Side-Sub': streamInfo(640, 360),
 };
@@ -76,11 +76,11 @@ const http = createHttpServer((request, response) => {
     response.end(snapshot);
     return;
   }
-  if (request.url === '/tone.wav') {
+  if (request.url === '/tone.opus') {
     response.writeHead(200, {
       'Cache-Control': 'no-store',
       'Content-Length': tone.length,
-      'Content-Type': 'audio/wav',
+      'Content-Type': 'audio/ogg',
     });
     response.end(tone);
     return;

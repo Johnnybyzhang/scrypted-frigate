@@ -49,7 +49,7 @@ const plugins = Object.fromEntries(expectedPlugins.map(id => {
 }));
 
 assert.equal(sdk.serverVersion, '0.143.0');
-assert.equal(front.name, 'Aqara G4 E2E');
+assert.equal(front.name, 'Front Door E2E');
 assert.equal(front.type, 'Doorbell');
 assert.equal(front.online, true);
 for (const iface of ['VideoCamera', 'Camera', 'MotionSensor', 'AudioSensor', 'BinarySensor', 'TamperSensor', 'Intercom', 'Online', 'Settings'])
@@ -149,8 +149,8 @@ await publish('frigate/available', 'online');
 await publish('frigate/front_door/motion', 'ON');
 await publish('frigate/front_door/audio/all', 'ON');
 await publish('frigate/side_yard/motion', 'ON');
-await publish('aqara/g4/event/doorbell_ring', '{"id":"scrypted-core-e2e-doorbell"}');
-await publish('aqara/g4/event/tamper', '{"id":"scrypted-core-e2e-tamper"}');
+await publish('site/front_door/doorbell', '{"id":"scrypted-core-e2e-doorbell"}');
+await publish('site/front_door/tamper', '{"id":"scrypted-core-e2e-tamper"}');
 await waitFor('multi-camera MQTT state fanout', () => front.motionDetected === true
   && front.audioDetected === true
   && front.binaryState === true
@@ -165,10 +165,10 @@ await waitFor('multi-camera MQTT level reset', () => front.motionDetected === fa
   && side.motionDetected === false);
 await waitFor('doorbell pulse reset', () => front.binaryState === false, 5000);
 
-const toneUrl = 'http://127.0.0.1:11885/tone.wav';
+const toneUrl = 'http://127.0.0.1:11885/tone.opus';
 const tone = await sdk.mediaManager.createFFmpegMediaObject({
   url: toneUrl,
-  inputArguments: ['-re', '-i', toneUrl],
+  inputArguments: ['-re', '-acodec', 'libopus', '-i', toneUrl],
 });
 await front.startIntercom(tone);
 await new Promise(resolve => setTimeout(resolve, 4000));
@@ -218,8 +218,8 @@ const evidence = {
     sideYard: sideOptions,
   },
   upstream: {
-    frontDoorMain: 'rtsp://127.0.0.1:18554/Scrypted-E2E-G4',
-    frontDoorSub: 'rtsp://127.0.0.1:18554/Scrypted-E2E-G4-Sub',
+    frontDoorMain: 'rtsp://127.0.0.1:18554/Scrypted-E2E-Doorbell',
+    frontDoorSub: 'rtsp://127.0.0.1:18554/Scrypted-E2E-Doorbell-Sub',
     sideYardMain: 'rtsp://127.0.0.1:18554/Scrypted-E2E-Side',
     sideYardSub: 'rtsp://127.0.0.1:18554/Scrypted-E2E-Side-Sub',
   },

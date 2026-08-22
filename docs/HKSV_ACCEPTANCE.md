@@ -1,45 +1,44 @@
 # HomeKit and HKSV acceptance
 
-The automated E2E ends safely at the Scrypted Core/HomeKit-plugin boundary. Apple Home pairing is a separate, user-approved acceptance operation.
+Run the local Scrypted test first:
 
-## Scrypted boundary — automated
+```sh
+npm run test:e2e:scrypted-core
+```
+
+## Scrypted checks
 
 For every imported camera:
 
-- stable identity survives deselect/reselect;
-- main/sub live paths, snapshots, motion, Online, Rebroadcast, and WebUI live view work;
-- HomeKit mixin is active in standalone accessory mode;
-- HomeKit-visible interfaces match the device type.
+- Open the main and sub streams in the Scrypted UI.
+- Request a snapshot.
+- Trigger motion through MQTT.
+- Confirm the device remains online after a Frigate refresh.
+- Enable the HomeKit mixin in standalone accessory mode.
 
-For an audio-enabled Doorbell:
+For a Doorbell:
 
-- `AudioSensor`, `BinarySensor`, `TamperSensor`, and `Intercom` are present;
-- derived Frigate motion/audio and configured external press/tamper events work;
-- Scrypted intercom audio reaches the go2rtc backchannel sink.
+- Trigger press and tamper events through their configured MQTT topics.
+- Confirm retained press and tamper messages are ignored.
+- Start talkback with AAC-ELD and Opus HomeKit sessions. Confirm the camera receives PCMA or the Opus fallback.
+- Stop talkback and confirm the bridge FFmpeg process exits and the go2rtc playback route clears.
 
-For an ordinary Camera:
+## Home app checks
 
-- doorbell/tamper settings and interfaces are absent;
-- intercom and audio detection are absent unless explicitly enabled/available;
-- HomeKit treats it as a camera, not a doorbell.
+- Pair each camera as a standalone accessory.
+- Open local and remote live video.
+- Check camera audio and snapshot refresh.
+- Confirm a Camera has no doorbell controls.
+- Press each Doorbell twenty times and count twenty Home notifications.
+- Include two quick presses in that count.
+- Run ten start, talk, and stop cycles. Listen at the camera for each cycle.
+- Press the Doorbell during talkback and confirm one notification.
 
-## Apple Home — manual qualification
+## HKSV checks
 
-Pair each selected child in standalone Accessory Mode and preserve evidence that:
-
-- local and remote live view work at expected resolution with expected audio;
-- tiles refresh with current snapshots;
-- the ordinary camera has no doorbell controls or notifications;
-- twenty physical G4 presses produce exactly twenty Home doorbell events, including rapid double-press;
-- Home microphone audio is physically audible at the G4 for ten start/talk/stop cycles;
-- a press during talkback still produces one notification.
-
-## HKSV — manual qualification
-
-- Enable Stream & Recording and all-motion recording on the Doorbell.
-- Trigger physical motion and confirm Scrypted motion state.
-- Confirm the HomeKit plugin begins a camera recording session.
-- Confirm a matching HKSV timeline clip appears and plays with expected audio.
-- Repeat after MQTT reconnect, Frigate/go2rtc restart, plugin reload, Scrypted restart, and Home Hub handoff.
-
-API, transport, codec, simulator, or Scrypted-boundary evidence cannot substitute for physical audibility or a user-visible HKSV timeline entry.
+- Enable Stream and Recording.
+- Select all-motion recording for the test.
+- Trigger motion and confirm Scrypted reports it.
+- Confirm the HomeKit plugin starts a recording session.
+- Open the matching clip in the Home timeline and check its audio.
+- Repeat after MQTT reconnect, Frigate restart, go2rtc restart, plugin reload, Scrypted restart, and Home Hub handoff.

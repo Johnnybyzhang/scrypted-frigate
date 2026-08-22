@@ -1,63 +1,73 @@
 # Architecture
 
-## Provider and child model
+## Provider and cameras
 
 ```text
-Frigate /api/config -----------+---- camera inventory and roles
-Frigate /api/go2rtc/streams ---+---- stream names and metadata
-Frigate latest.jpg ---------------- snapshots
-go2rtc RTSP ----------------------- live main/sub media
-go2rtc API ------------------------ per-camera intercom destination
-MQTT broker ----------------------- derived Frigate events + optional doorbell events
-                                      |
-                                      v
-                         Frigate Camera Bridge provider
-                           | one shared MQTT client
-                           | one discovery inventory
-                           +-- selected Camera child
-                           +-- selected Doorbell child
-                                      |
-                                      v
-                            Scrypted Core / HomeKit
+Frigate /api/config
+Frigate /api/go2rtc/streams
+          |
+          v
+Frigate Camera Bridge
+  | one camera inventory
+  | one MQTT connection
+  |
+  +-- selected Camera
+  +-- selected Doorbell
+          |
+          v
+Scrypted Core and HomeKit
 ```
 
-The provider stores only shared endpoints, credentials, and the selected Frigate camera names. Native child ids are `frigate-camera:<encoded Frigate name>`, so deselecting and reselecting a camera preserves identity. `onDeviceDiscovered` registers a new native id before the child accesses Scrypted storage, then `onDevicesChanged` publishes the complete selected manifest.
+The provider stores the shared Frigate, MQTT, and go2rtc connections. It also stores the selected Frigate camera names.
 
-There are no code branches for native, Docker, Apple Container, or other OCI packaging. Reachability is configuration, not platform detection.
+Each selected camera has a native id in this form:
 
-## Discovery and media
+```text
+frigate-camera:<encoded Frigate camera name>
+```
 
-`/api/config` supplies the camera list, enabled/audio flags, live stream mapping, FFmpeg role mapping, detect resolution, and MQTT prefix. `/api/go2rtc/streams` confirms available restreams and supplies codec/resolution metadata. Main and sub streams are selected by Frigate roles first and resolution second.
+The provider calls `onDeviceDiscovered` before a new camera reads Scrypted storage. It then sends the selected camera list through `onDevicesChanged`. Descriptor and MQTT fingerprints stop the 30 second discovery refresh from restarting mixins or reconnecting MQTT when nothing changed.
 
-RTSP URLs default to `rtsp://<Frigate API host>:8554/<discovered stream>`. A single provider-level base override supports split-host or reverse-proxy deployments. There are no per-camera URL fields. `takePicture` uses `/api/<camera>/latest.jpg`.
+## Discovery
 
-## Interfaces and settings
+`/api/config` supplies camera names, enabled state, audio detection, live stream mappings, FFmpeg roles, detect resolution, and the MQTT prefix.
 
-Every child provides camera, snapshot, motion, online, and settings interfaces. Audio detection, doorbell/tamper sensors, and intercom are conditional. Switching a child between Camera and Doorbell republishes its descriptor and MQTT route; ordinary cameras never subscribe to external doorbell topics.
+`/api/go2rtc/streams` confirms which restreams exist and supplies codec and resolution data. The plugin chooses the main and sub streams by Frigate role. Resolution breaks ties.
 
-Global credentials stay on the provider. Doorbell mappings stay on the Doorbell. Frigate event topics are derived rather than stored.
+The RTSP base defaults to port 8554 on the Frigate API host. The provider has one override for installations that place the API and RTSP server on different hosts.
 
-## Events
+Snapshots use `/api/<camera>/latest.jpg`.
 
-One MQTT client subscribes to the union of selected-camera routes:
+## MQTT
 
-- `<topic_prefix>/available` once;
-- `<topic_prefix>/<camera>/motion` for every camera;
-- `<topic_prefix>/<camera>/audio/all` only when Frigate audio detection is enabled;
-- external device availability, doorbell press, and tamper only for Doorbell children when configured.
+One MQTT client subscribes to the union of routes for all selected cameras.
 
-Motion/audio accept retained level state. Doorbell/tamper reject retained packets and deduplicate event ids, timestamps, or MQTT delivery ids before raising pulses.
+```text
+<prefix>/available
+<prefix>/<camera>/motion
+<prefix>/<camera>/audio/all
+```
 
-## Intercom
+The audio route exists when Frigate enables audio detection for that camera. Doorbell devices can add availability, press, and tamper topics.
 
-The bridge converts the Scrypted return-audio `MediaObject` to PCMA 8 kHz, exposes a single-use random HTTP stream through Scrypted, and asks go2rtc to attach it to the selected camera's API-discovered main stream. Only one intercom session is active at a time. Starting another session or stopping removes the ingress, clears the go2rtc source, and terminates FFmpeg.
+Motion and audio are level states, so retained messages are accepted. Press and tamper are edge events. The router rejects retained edge messages and deduplicates MQTT redelivery by event id, timestamp, or message id.
 
-go2rtc v1.9.14 requires the configured FFmpeg executable in `exec.allow_paths`. This remains server policy and is never altered by the plugin.
+## Talkback
 
-## Failure domains
+The HomeKit plugin terminates the controller's microphone session and decrypts its SRTP packets. It republishes the decrypted AAC-ELD or Opus audio through a local RTSP input, wraps that input in a Scrypted `MediaObject`, and calls the camera's `startIntercom` method.
 
-- Frigate API failure marks discovered media offline but retains selected child identity and the last known inventory.
-- RTSP failure affects live media only.
-- MQTT failure affects motion/audio/binary state only.
-- go2rtc API or Scrypted-ingress failure affects intercom only.
-- Deselecting a child affects only Scrypted; it never mutates Frigate or go2rtc.
+The bridge gets the FFmpeg input and executable from Scrypted. Its FFmpeg process keeps Scrypted's decoder arguments, then encodes the camera-facing stream. The first target is PCMA at 8 kHz, mono, in a streaming WAV container. The fallback is Opus at 48 kHz, stereo, with 10 ms frames in MPEG-TS.
+
+The bridge sets a 32-byte probe, zero analysis time, no input buffer, and low-delay codec flags before the local RTSP input. It serves the encoded output once at a random 192-bit HTTP path.
+
+The bridge posts that HTTP URL to go2rtc's stream-to-camera API. go2rtc reads PCMA/WAV directly and routes packets that match the camera's backchannel. A PCMA rejection or missing ingress connection makes the bridge retry once with Opus. The Opus retry asks go2rtc FFmpeg to copy the already encoded Opus packets into its internal RTSP path. It does not encode audio.
+
+Only one talkback session runs at a time. Starting another session stops the first. Stop clears the go2rtc source, removes the HTTP path, and terminates FFmpeg.
+
+## Failure behavior
+
+- A failed Frigate refresh keeps the selected device ids and last camera inventory.
+- RTSP errors affect live video.
+- MQTT errors affect sensor state.
+- Frigate HTTP errors affect discovery and snapshots.
+- go2rtc API or HTTP ingress errors affect talkback.
