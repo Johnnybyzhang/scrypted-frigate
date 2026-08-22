@@ -1,0 +1,81 @@
+{
+  "name": "@johnnybyzhang/scrypted-frigate",
+  "version": "0.0.1",
+  "description": "Environment-agnostic multi-camera Frigate bridge for Scrypted Core and HomeKit Secure Video.",
+  "license": "UNLICENSED",
+  "author": {
+    "name": "Johnny Zhang",
+    "url": "https://github.com/johnnybyzhang"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/johnnybyzhang/scrypted-frigate.git"
+  },
+  "bugs": {
+    "url": "https://github.com/johnnybyzhang/scrypted-frigate/issues"
+  },
+  "homepage": "https://github.com/johnnybyzhang/scrypted-frigate#readme",
+  "keywords": [
+    "scrypted",
+    "plugin",
+    "frigate",
+    "camera",
+    "homekit",
+    "hksv",
+    "go2rtc",
+    "mqtt"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "scrypted-setup-project": "scrypted-setup-project",
+    "prescrypted-setup-project": "scrypted-package-json",
+    "build": "scrypted-webpack",
+    "prepublishOnly": "NODE_ENV=production scrypted-webpack",
+    "prescrypted-vscode-launch": "WEBPACK_DEVTOOL=nosources-source-map scrypted-webpack",
+    "scrypted-vscode-launch": "scrypted-deploy-debug",
+    "scrypted-deploy-debug": "scrypted-deploy-debug",
+    "scrypted-debug": "scrypted-debug",
+    "scrypted-deploy": "scrypted-deploy",
+    "scrypted-package-json": "scrypted-package-json",
+    "check": "tsc --noEmit",
+    "check:shell": "sh -n hardware/sync-g4-key.sh hardware/preflight-g4.sh hardware/e2e/talkback-sink.sh hardware/e2e/verify-go2rtc.sh hardware/e2e/scrypted-core/run-full-e2e.sh",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e:go2rtc": "sh hardware/e2e/verify-go2rtc.sh",
+    "test:e2e:go2rtc:matrix": "GO2RTC_E2E_VERSION=v1.9.10 sh hardware/e2e/verify-go2rtc.sh && GO2RTC_E2E_VERSION=v1.9.14 sh hardware/e2e/verify-go2rtc.sh",
+    "test:e2e:scrypted-core": "sh hardware/e2e/scrypted-core/run-full-e2e.sh",
+    "verify": "npm run check && npm run check:shell && npm test && npm run build && npm audit --omit=dev",
+    "verify:full": "npm run verify && npm run test:e2e:go2rtc:matrix && npm run test:e2e:scrypted-core && npm run package:inspect",
+    "package:inspect": "npm publish --dry-run --access public",
+    "g4:key:sync": "sh hardware/sync-g4-key.sh",
+    "g4:preflight": "npm run g4:key:sync && sh hardware/preflight-g4.sh"
+  },
+  "scrypted": {
+    "name": "Frigate Camera Bridge",
+    "type": "DeviceProvider",
+    "interfaces": [
+      "DeviceProvider",
+      "HttpRequestHandler",
+      "Settings"
+    ],
+    "rollup": true
+  },
+  "dependencies": {
+    "mqtt": "5.15.2"
+  },
+  "devDependencies": {
+    "@scrypted/sdk": "0.5.59",
+    "@types/node": "24.9.2",
+    "typescript": "5.9.3",
+    "vitest": "4.1.11"
+  },
+  "overrides": {
+    "adm-zip": "0.6.0",
+    "serialize-javascript": "7.1.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,24 @@
+api:
+  listen: "127.0.0.1:11984"
+log:
+  level: debug
+  format: text
+rtsp:
+  listen: "127.0.0.1:18554"
+webrtc:
+  listen: "127.0.0.1:18555"
+exec:
+  allow_paths:
+    - "ffmpeg"
+    - "@FFMPEG@"
+    - "@TALKBACK_SINK@"
+streams:
+  Scrypted-E2E-G4:
+    - exec:@FFMPEG@ -hide_banner -loglevel warning -re -f lavfi -i testsrc2=size=1920x1080:rate=20 -f lavfi -i sine=frequency=440:sample_rate=16000 -map 0:v:0 -map 1:a:0 -c:v libx264 -preset ultrafast -tune zerolatency -profile:v main -level:v 4.0 -pix_fmt yuv420p -g 40 -keyint_min 40 -sc_threshold 0 -b:v 2M -c:a aac -ar 16000 -ac 1 -b:a 64k -f mpegts pipe:1#killsignal=15#killtimeout=5
+    - exec:@TALKBACK_SINK@ @TALKBACK_OUTPUT@#backchannel=1#audio=alaw/8000#killsignal=15#killtimeout=5
+  Scrypted-E2E-G4-Sub:
+    - exec:@FFMPEG@ -hide_banner -loglevel warning -re -f lavfi -i testsrc2=size=640x360:rate=15 -map 0:v:0 -c:v libx264 -preset ultrafast -tune zerolatency -profile:v main -level:v 3.1 -pix_fmt yuv420p -g 30 -keyint_min 30 -sc_threshold 0 -b:v 500k -an -f mpegts pipe:1#killsignal=15#killtimeout=5
+  Scrypted-E2E-Side:
+    - exec:@FFMPEG@ -hide_banner -loglevel warning -re -f lavfi -i testsrc2=size=1280x720:rate=20 -map 0:v:0 -c:v libx264 -preset ultrafast -tune zerolatency -profile:v main -level:v 4.0 -pix_fmt yuv420p -g 40 -keyint_min 40 -sc_threshold 0 -b:v 1M -an -f mpegts pipe:1#killsignal=15#killtimeout=5
+  Scrypted-E2E-Side-Sub:
+    - exec:@FFMPEG@ -hide_banner -loglevel warning -re -f lavfi -i smptebars=size=640x360:rate=15 -map 0:v:0 -c:v libx264 -preset ultrafast -tune zerolatency -profile:v main -level:v 3.1 -pix_fmt yuv420p -g 30 -keyint_min 30 -sc_threshold 0 -b:v 400k -an -f mpegts pipe:1#killsignal=15#killtimeout=5

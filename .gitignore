@@ -1,0 +1,11 @@
+node_modules/
+.DS_Store
+out/
+dist/
+src/main.nodejs.ts
+*.tgz
+.env.local
+private/
+.artifacts/
+coverage/
+*.log

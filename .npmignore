@@ -1,0 +1,12 @@
+.artifacts/
+out/
+.env*
+.github/
+docs/
+hardware/
+private/
+test/
+src/
+tsconfig.json
+coverage/
+*.log
