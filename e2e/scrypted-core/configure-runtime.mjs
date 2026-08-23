@@ -55,6 +55,7 @@ let front = cameras.find(camera => camera.nativeId.includes('front_door'));
 let side = cameras.find(camera => camera.nativeId.includes('side_yard'));
 assert(front && side, 'imported camera identities are incorrect');
 const stableIds = { front: front.nativeId, side: side.nativeId };
+const cameraByNativeId = nativeId => allDevices().find(device => device.nativeId === nativeId);
 
 // Prove that discovery behaves like a checkbox-based camera provider: removing a
 // selection releases only that Scrypted child, and selecting it again restores
@@ -77,16 +78,39 @@ assert(front && side, 're-added cameras did not retain stable native ids');
 
 for (const [key, value] of Object.entries({
   deviceName: 'Front Door E2E',
-  deviceType: 'Doorbell',
   enableIntercom: true,
   deviceAvailabilityTopic: 'site/front_door/availability',
   doorbellTopic: 'site/front_door/doorbell',
   tamperTopic: 'site/front_door/tamper',
 }))
   await front.putSetting(key, value);
+await front.putSetting('deviceType', 'Doorbell');
+front = await waitFor('front door descriptor update', () => {
+  const camera = cameraByNativeId(stableIds.front);
+  return camera?.name === 'Front Door E2E' && camera.type === 'Doorbell' ? camera : undefined;
+});
 await side.putSetting('deviceName', 'Side Yard E2E');
-await side.putSetting('deviceType', 'Camera');
-await side.putSetting('enableIntercom', false);
+side = await waitFor('side yard name update', () => {
+  const camera = cameraByNativeId(stableIds.side);
+  return camera?.name === 'Side Yard E2E' ? camera : undefined;
+});
+await front.setMixins([]);
+await side.setMixins([]);
+
+async function upstreamInput(camera, id) {
+  const media = await camera.getVideoStream({ id });
+  return sdk.mediaManager.convertMediaObjectToJSON(media, 'x-scrypted/x-ffmpeg-input');
+}
+const upstream = {
+  frontDoorMain: await upstreamInput(front, 'main'),
+  frontDoorSub: await upstreamInput(front, 'sub'),
+  sideYardMain: await upstreamInput(side, 'main'),
+  sideYardSub: await upstreamInput(side, 'sub'),
+};
+assert.equal(upstream.frontDoorMain.url, 'rtsp://127.0.0.1:18554/Scrypted-E2E-Doorbell?video=h264&audio');
+assert.equal(upstream.frontDoorSub.url, 'rtsp://127.0.0.1:18554/Scrypted-E2E-Doorbell-Sub?video=h264&audio');
+assert.equal(upstream.sideYardMain.url, 'rtsp://127.0.0.1:18554/Scrypted-E2E-Side?video=h264&audio');
+assert.equal(upstream.sideYardSub.url, 'rtsp://127.0.0.1:18554/Scrypted-E2E-Side-Sub?video=h264&audio');
 
 const mixinPluginIds = ['@scrypted/prebuffer-mixin', '@scrypted/webrtc', '@scrypted/snapshot', '@scrypted/homekit'];
 const mixins = mixinPluginIds.map(pluginId => {
@@ -97,11 +121,7 @@ const mixins = mixinPluginIds.map(pluginId => {
 for (const camera of [front, side]) {
   await camera.setMixins([...new Set([...camera.mixins, ...mixins])]);
   for (const [key, value] of Object.entries({
-    'prebuffer:defaultStream': 'Main Stream',
-    'prebuffer:remoteStream': 'Low Resolution Stream',
-    'prebuffer:lowResolutionStream': 'Low Resolution Stream',
-    'prebuffer:recordingStream': 'Main Stream',
-    'prebuffer:remoteRecordingStream': 'Low Resolution Stream',
+    'prebuffer:enabledStreams': ['Main Stream', 'Low Resolution Stream'],
     'homekit:standalone': true,
     'homekit:debugMode': ['Save Recordings'],
   }))
@@ -152,6 +172,7 @@ const evidence = {
     providedInterfaces: side.providedInterfaces,
     type: side.type,
   },
+  upstream,
 };
 if (evidencePath)
   await writeFile(evidencePath, `${JSON.stringify(evidence, null, 2)}\n`, { mode: 0o600 });

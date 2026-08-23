@@ -46,7 +46,7 @@ export function discoveredCamera(overrides: Partial<DiscoveredCamera> = {}): Dis
     mainStream: {
       id: 'front_door',
       name: 'Main Stream',
-      rtspUrl: 'rtsp://frigate.invalid:8554/front_door',
+      rtspUrl: 'rtsp://frigate.invalid:8554/front_door?video=h264&audio',
       width: 1920,
       height: 1080,
       videoCodec: 'h264',
@@ -56,7 +56,7 @@ export function discoveredCamera(overrides: Partial<DiscoveredCamera> = {}): Dis
     subStream: {
       id: 'front_door_sub',
       name: 'Low Resolution Stream',
-      rtspUrl: 'rtsp://frigate.invalid:8554/front_door_sub',
+      rtspUrl: 'rtsp://frigate.invalid:8554/front_door_sub?video=h264&audio',
       width: 640,
       height: 360,
       videoCodec: 'h264',

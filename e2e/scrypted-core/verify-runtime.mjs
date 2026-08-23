@@ -47,6 +47,8 @@ const plugins = Object.fromEntries(expectedPlugins.map(id => {
   assert(plugin, `plugin is missing: ${id}`);
   return [id, plugin.info?.version || 'local'];
 }));
+const provider = findPlugin('@johnnybyzhang/scrypted-frigate');
+assert(provider, 'Frigate Camera Bridge provider is missing');
 
 assert.equal(sdk.serverVersion, '0.143.0');
 assert.equal(front.name, 'Front Door E2E');
@@ -86,6 +88,29 @@ assert.equal(sideOptions[0].video.height, 720);
 assert.equal(sideOptions[0].audio, undefined);
 assert.equal(sideOptions[1].video.width, 640);
 
+async function setGo2rtcInventoryMode(mode) {
+  const response = await fetch(`http://127.0.0.1:11885/control/go2rtc-inventory?mode=${mode}`, {
+    method: 'POST',
+  });
+  assert.equal(response.ok, true, `failed to set go2rtc inventory mode to ${mode}`);
+}
+
+await setGo2rtcInventoryMode('empty');
+await provider.putSetting('refreshCameras', true);
+assert.equal(front.online, true, 'an idle go2rtc inventory made the doorbell unavailable');
+assert.equal(side.online, true, 'an idle go2rtc inventory made the camera unavailable');
+
+await setGo2rtcInventoryMode('error');
+await provider.putSetting('refreshCameras', true);
+assert.equal(front.online, true, 'a go2rtc metadata error made the doorbell unavailable');
+assert.equal(side.online, true, 'a go2rtc metadata error made the camera unavailable');
+const degradedDiscoveryStatus = (await provider.getSettings())
+  .find(setting => setting.title === 'Discovery Status')?.value;
+assert.match(String(degradedDiscoveryStatus), /go2rtc stream metadata unavailable/);
+
+await setGo2rtcInventoryMode('normal');
+await provider.putSetting('refreshCameras', true);
+
 async function rebroadcastInputs(camera) {
   const mainMedia = await camera.getVideoStream({ id: 'main' });
   const subMedia = await camera.getVideoStream({ id: 'sub' });
@@ -114,7 +139,6 @@ const snapshots = {
   sideYardBytes: await takeJpeg(side),
 };
 
-const provider = findPlugin('@johnnybyzhang/scrypted-frigate');
 const providerSettings = await provider.getSettings();
 const providerKeys = providerSettings.map(setting => setting.key).filter(Boolean);
 for (const key of ['doorbellTopic', 'tamperTopic', 'deviceAvailabilityTopic', 'motionTopic', 'audioTopic', 'mainStreamUrl', 'subStreamUrl'])
@@ -196,6 +220,8 @@ const evidence = {
   },
   discovery: {
     choices: providerSettings.find(setting => setting.key === 'importedCameras')?.choices,
+    idleInventoryKeptOnline: true,
+    metadataFailureKeptOnline: true,
     selected: providerSettings.find(setting => setting.key === 'importedCameras')?.value,
   },
   homekit: {
@@ -216,12 +242,6 @@ const evidence = {
   streamOptions: {
     frontDoor: frontOptions,
     sideYard: sideOptions,
-  },
-  upstream: {
-    frontDoorMain: 'rtsp://127.0.0.1:18554/Scrypted-E2E-Doorbell',
-    frontDoorSub: 'rtsp://127.0.0.1:18554/Scrypted-E2E-Doorbell-Sub',
-    sideYardMain: 'rtsp://127.0.0.1:18554/Scrypted-E2E-Side',
-    sideYardSub: 'rtsp://127.0.0.1:18554/Scrypted-E2E-Side-Sub',
   },
 };
 

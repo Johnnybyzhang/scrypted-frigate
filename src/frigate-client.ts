@@ -33,6 +33,17 @@ interface StreamMetadata {
   audioSampleRate?: number;
 }
 
+interface VideoMetadata {
+  codec?: string;
+  height?: number;
+  width?: number;
+}
+
+interface AudioMetadata {
+  codec?: string;
+  sampleRate?: number;
+}
+
 export class FrigateClient {
   constructor(
     private readonly config: ProviderConfig,
@@ -62,10 +73,16 @@ export class FrigateClient {
   }
 
   async discoverCameras(): Promise<FrigateDiscoveryResult> {
-    const [frigateConfig, go2rtcStreams] = await Promise.all([
+    const [frigateConfigResult, go2rtcStreamsResult] = await Promise.allSettled([
       this.getJson<FrigateConfigResponse>('config'),
       this.getJson<Record<string, unknown>>('go2rtc/streams'),
     ]);
+    if (frigateConfigResult.status === 'rejected')
+      throw frigateConfigResult.reason;
+    const frigateConfig = frigateConfigResult.value;
+    const go2rtcStreams = go2rtcStreamsResult.status === 'fulfilled'
+      ? go2rtcStreamsResult.value
+      : {};
     const cameras = isRecord(frigateConfig.cameras) ? frigateConfig.cameras : {};
     const streams = isRecord(go2rtcStreams) ? go2rtcStreams : {};
     const discovered: DiscoveredCamera[] = [];
@@ -79,6 +96,9 @@ export class FrigateClient {
     return {
       cameras: discovered.sort((left, right) => left.cameraName.localeCompare(right.cameraName)),
       topicPrefix: configuredPrefix || 'frigate',
+      warning: go2rtcStreamsResult.status === 'rejected'
+        ? `go2rtc stream metadata unavailable: ${errorMessage(go2rtcStreamsResult.reason)}`
+        : undefined,
     };
   }
 
@@ -123,12 +143,14 @@ export class FrigateClient {
   ): DiscoveredCamera {
     const friendlyStreams = liveStreams(camera.live?.streams);
     const roles = roleStreams(camera.ffmpeg?.inputs);
-    const candidates = unique([
+    const configuredCandidates = unique([
       ...friendlyStreams.map(stream => stream.id),
       ...roles.main,
       ...roles.sub,
-      cameraName,
-    ]).filter(name => name in go2rtcStreams);
+    ]);
+    const apiCandidates = unique([...configuredCandidates, cameraName])
+      .filter(name => name in go2rtcStreams);
+    const candidates = unique([...configuredCandidates, ...apiCandidates]);
     const restreamAvailable = candidates.length > 0;
     const fallbackName = candidates[0] || cameraName;
     const streamCandidates = (candidates.length ? candidates : [fallbackName]).map((id, index) => {
@@ -168,9 +190,15 @@ export class FrigateClient {
     return {
       id,
       name,
-      rtspUrl: `${this.rtspBaseUrl()}/${encodeURIComponent(id)}`,
+      rtspUrl: this.streamRtspUrl(id),
       ...metadata,
+      videoCodec: 'h264',
     };
+  }
+
+  private streamRtspUrl(id: string): string {
+    const url = `${this.rtspBaseUrl()}/${encodeURIComponent(id)}`;
+    return `${url}?video=h264&audio`;
   }
 
   private rtspBaseUrl(): string {
@@ -227,22 +255,76 @@ function restreamName(path: string): string | undefined {
 }
 
 function streamMetadata(value: unknown): StreamMetadata {
-  const metadata: StreamMetadata = {};
-  walk(value, current => {
-    const codec = isRecord(current.codec) ? current.codec : current;
+  const videos: VideoMetadata[] = [];
+  const audios: AudioMetadata[] = [];
+  for (const codec of receiverCodecs(value)) {
     const codecType = typeof codec.codec_type === 'string' ? codec.codec_type : '';
     const codecName = typeof codec.codec_name === 'string' ? codec.codec_name.toLowerCase() : '';
     if (codecType === 'video' || (!codecType && finitePositive(codec.width) && finitePositive(codec.height))) {
-      metadata.width ||= finitePositive(codec.width);
-      metadata.height ||= finitePositive(codec.height);
-      metadata.videoCodec ||= codecName || undefined;
+      videos.push({
+        codec: normalizeVideoCodec(codecName),
+        height: finitePositive(codec.height),
+        width: finitePositive(codec.width),
+      });
     }
     if (codecType === 'audio' || (!codecType && finitePositive(codec.sample_rate))) {
-      metadata.audioCodec ||= codecName || undefined;
-      metadata.audioSampleRate ||= finitePositive(codec.sample_rate);
+      audios.push({
+        codec: codecName || undefined,
+        sampleRate: finitePositive(codec.sample_rate),
+      });
     }
+  }
+  const video = videos.find(candidate => candidate.codec === 'h264') || videos[0];
+  const audio = audios[0];
+  return {
+    width: video?.width,
+    height: video?.height,
+    videoCodec: video?.codec,
+    audioCodec: audio?.codec,
+    audioSampleRate: audio?.sampleRate,
+  };
+}
+
+function receiverCodecs(value: unknown): Record<string, unknown>[] {
+  if (isRecord(value) && Array.isArray(value.producers)) {
+    const codecs: Record<string, unknown>[] = [];
+    for (const producer of value.producers) {
+      if (!isRecord(producer) || !Array.isArray(producer.receivers))
+        continue;
+      for (const receiver of producer.receivers) {
+        if (!isRecord(receiver))
+          continue;
+        const codec = isRecord(receiver.codec) ? receiver.codec : receiver;
+        codecs.push(codec);
+      }
+    }
+    return codecs;
+  }
+
+  const codecs: Record<string, unknown>[] = [];
+  const seen = new Set<Record<string, unknown>>();
+  walk(value, current => {
+    const codec = isRecord(current.codec) ? current.codec : current;
+    if (seen.has(codec))
+      return;
+    seen.add(codec);
+    if (typeof codec.codec_type === 'string'
+      || finitePositive(codec.width)
+      || finitePositive(codec.height)
+      || finitePositive(codec.sample_rate))
+      codecs.push(codec);
   });
-  return metadata;
+  return codecs;
+}
+
+function normalizeVideoCodec(codec: string): string | undefined {
+  if (!codec)
+    return undefined;
+  if (['avc', 'avc1', 'h.264', 'h264'].includes(codec))
+    return 'h264';
+  if (['h.265', 'h265', 'hevc', 'hev1'].includes(codec))
+    return 'h265';
+  return codec;
 }
 
 function walk(value: unknown, visitor: (value: Record<string, unknown>) => void): void {
@@ -275,4 +357,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function hostForUrl(hostname: string): string {
   return hostname.includes(':') && !hostname.startsWith('[') ? `[${hostname}]` : hostname;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

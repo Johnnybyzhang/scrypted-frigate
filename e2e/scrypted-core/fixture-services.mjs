@@ -57,14 +57,44 @@ const frigateConfig = {
   },
 };
 const go2rtcStreams = {
-  'Scrypted-E2E-Doorbell': streamInfo(1920, 1080, 'aac', 16000),
+  'Scrypted-E2E-Doorbell': {
+    producers: [
+      {
+        url: 'exec:hevc-test-source',
+        receivers: [
+          { codec: { codec_type: 'video', codec_name: 'hevc', width: 1920, height: 1080 } },
+          { codec: { codec_type: 'audio', codec_name: 'aac', sample_rate: 16000 } },
+        ],
+      },
+      {
+        url: 'exec:isapi-test-backchannel',
+        senders: [{ codec: { codec_type: 'audio', codec_name: 'pcm_alaw', sample_rate: 8000 } }],
+      },
+      {
+        url: 'ffmpeg:Scrypted-E2E-Doorbell#video=h264',
+      },
+    ],
+  },
   'Scrypted-E2E-Doorbell-Sub': streamInfo(640, 360),
   'Scrypted-E2E-Side': streamInfo(1280, 720),
   'Scrypted-E2E-Side-Sub': streamInfo(640, 360),
 };
+let go2rtcInventoryMode = 'normal';
 const broker = await createAedes();
 const mqtt = createTcpServer(broker.handle);
 const http = createHttpServer((request, response) => {
+  const requestUrl = new URL(request.url || '/', 'http://127.0.0.1');
+  if (request.method === 'POST' && requestUrl.pathname === '/control/go2rtc-inventory') {
+    const mode = requestUrl.searchParams.get('mode');
+    if (!['normal', 'empty', 'error'].includes(mode || '')) {
+      response.writeHead(400);
+      response.end('mode must be normal, empty, or error');
+      return;
+    }
+    go2rtcInventoryMode = mode;
+    sendJson(response, { mode });
+    return;
+  }
   if (request.url === '/snapshot.jpg'
     || request.url === '/api/front_door/latest.jpg'
     || request.url === '/api/side_yard/latest.jpg') {
@@ -99,7 +129,12 @@ const http = createHttpServer((request, response) => {
     return;
   }
   if (request.url === '/api/go2rtc/streams') {
-    sendJson(response, go2rtcStreams);
+    if (go2rtcInventoryMode === 'error') {
+      response.writeHead(503);
+      response.end('temporary go2rtc inventory failure');
+      return;
+    }
+    sendJson(response, go2rtcInventoryMode === 'empty' ? {} : go2rtcStreams);
     return;
   }
   response.writeHead(404);

@@ -173,7 +173,7 @@ export function cameraSettings(config: CameraConfig, camera: DiscoveredCamera): 
   const sub = camera.subStream ? `${camera.subStream.name} (${camera.subStream.id})` : 'Not discovered';
   const settings: Setting[] = [
     { title: 'Frigate Camera', group: 'Discovery', readonly: true, value: camera.cameraName },
-    { title: 'Restream Status', group: 'Discovery', readonly: true, value: camera.restreamAvailable ? 'Available' : 'Missing from Frigate go2rtc API' },
+    { title: 'Restream Status', group: 'Discovery', readonly: true, value: camera.restreamAvailable ? 'Configured' : 'Not configured in Frigate' },
     { title: 'Main Stream', group: 'Discovery', readonly: true, value: main },
     { title: 'Low Resolution Stream', group: 'Discovery', readonly: true, value: sub },
     { key: cameraSettingKeys.deviceName, title: 'Scrypted Device Name', group: 'Camera', value: config.deviceName },

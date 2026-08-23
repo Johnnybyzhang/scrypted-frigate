@@ -49,6 +49,7 @@ export interface DiscoveredCamera {
 export interface FrigateDiscoveryResult {
   cameras: DiscoveredCamera[];
   topicPrefix: string;
+  warning?: string;
 }
 
 export interface Go2rtcConfig {

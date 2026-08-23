@@ -11,6 +11,7 @@ npm run test:e2e:scrypted-core
 For every imported camera:
 
 - Open the main and sub streams in the Scrypted UI.
+- Close every live viewer. Confirm the camera stays online and Rebroadcast keeps the selected streams prebuffered.
 - Request a snapshot.
 - Trigger motion through MQTT.
 - Confirm the device remains online after a Frigate refresh.
@@ -27,6 +28,7 @@ For a Doorbell:
 
 - Pair each camera as a standalone accessory.
 - Open local and remote live video.
+- Close and reopen live video. A fresh downstream RTSP session is expected; the upstream go2rtc consumer should not restart.
 - Check camera audio and snapshot refresh.
 - Confirm a Camera has no doorbell controls.
 - Press each Doorbell twenty times and count twenty Home notifications.

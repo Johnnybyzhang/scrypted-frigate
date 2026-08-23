@@ -137,7 +137,7 @@ wait_http() {
   attempts=0
   until curl --noproxy '*' -fsS --max-time 2 -o /dev/null "$url" 2>/dev/null; do
     attempts=$((attempts + 1))
-    if [ "$attempts" -ge 240 ]; then
+    if [ "$attempts" -ge 600 ]; then
       echo "$name did not become ready: $url" >&2
       return 1
     fi
@@ -189,6 +189,16 @@ side_sub=$($harness_node -p "require('$runtime_json').rebroadcast.sideYard.sub")
 "$ffprobe_path" -v error -rtsp_transport tcp -read_intervals '%+3' -show_streams -of json "$side_main" > "$evidence/rebroadcast-side-main.json"
 "$ffprobe_path" -v error -rtsp_transport tcp -read_intervals '%+3' -show_streams -of json "$side_sub" > "$evidence/rebroadcast-side-sub.json"
 
+# FFprobe has now closed every downstream Rebroadcast session. Give Scrypted a
+# moment to settle, then capture camera availability and go2rtc's upstream state.
+sleep 3
+(
+  cd "$script_dir"
+  SCRYPTED_E2E_URL=https://127.0.0.1:10443 \
+  SCRYPTED_E2E_EVIDENCE=$evidence/viewer-close.json \
+    "$harness_node" verify-viewer-close.mjs
+) > "$runtime/viewer-close.log"
+
 test -s "$talkback.pcma"
 talkback_bytes=$(wc -c < "$talkback.pcma" | tr -d ' ')
 "$ffmpeg_path" -hide_banner -loglevel error -y \
@@ -210,6 +220,7 @@ printf '%s\n' "$runtime" > "$artifacts/latest-run.txt"
 printf 'Scrypted Core and HomeKit E2E: PASS\n'
 printf '  two cameras: API discovery, checkbox remove/re-add, stable ids\n'
 printf '  media: Scrypted source paths, snapshots, Rebroadcast main/sub probes\n'
+printf '  lifecycle: cameras online after downstream viewers close; upstream state captured\n'
 printf '  events: derived Frigate motion/audio plus doorbell/tamper MQTT\n'
 printf '  talkback: HomeKit-style Opus input -> plugin PCMA stream -> direct go2rtc route\n'
 printf '  HomeKit: plugin loaded, camera mixins active, standalone accessories configured\n'

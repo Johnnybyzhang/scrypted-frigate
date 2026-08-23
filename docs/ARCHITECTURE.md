@@ -32,11 +32,19 @@ The provider calls `onDeviceDiscovered` before a new camera reads Scrypted stora
 
 `/api/config` supplies camera names, enabled state, audio detection, live stream mappings, FFmpeg roles, detect resolution, and the MQTT prefix.
 
-`/api/go2rtc/streams` confirms which restreams exist and supplies codec and resolution data. The plugin chooses the main and sub streams by Frigate role. Resolution breaks ties.
+Frigate's live stream map and local go2rtc FFmpeg inputs define which restreams exist. `/api/go2rtc/streams` supplies current codec and resolution data when it is available. The plugin chooses the main and sub streams by Frigate role. Resolution breaks ties.
+
+Each go2rtc stream can have several producers. Discovery reads only receiver tracks for forward dimensions and audio metadata. Every camera RTSP URL carries `video=h264&audio`. This filter starts a lazy H.264 transcoder instead of accepting the first active HEVC producer. Sender tracks belong to camera backchannels and do not become Scrypted forward-audio metadata.
 
 The RTSP base defaults to port 8554 on the Frigate API host. The provider has one override for installations that place the API and RTSP server on different hosts.
 
 Snapshots use `/api/<camera>/latest.jpg`.
+
+## Stream lifetime and availability
+
+The bridge returns a lazy FFmpeg input for each go2rtc RTSP URL and marks it as a local source. The Scrypted Rebroadcast mixin prebuffers local sources and keeps the upstream RTSP session open when its downstream viewer count reaches zero. A new Home or WebRTC viewer always creates a new downstream session to Rebroadcast. That viewer lifecycle does not control the bridge device's `Online` property.
+
+Configured Frigate stream names remain available when go2rtc reports no active metadata. A go2rtc inventory error becomes a discovery warning. If the Frigate configuration endpoint fails, the provider keeps its last inventory online for two 30 second refresh cycles. It marks cameras offline on the third consecutive failure and restores them on the next successful refresh.
 
 ## MQTT
 
@@ -66,7 +74,8 @@ Only one talkback session runs at a time. Starting another session stops the fir
 
 ## Failure behavior
 
-- A failed Frigate refresh keeps the selected device ids and last camera inventory.
+- A short Frigate refresh failure keeps the selected device ids, last camera inventory, and online state. Three consecutive failures mark the cameras offline.
+- Missing go2rtc metadata does not stop a configured camera. RTSP startup still reports a bad stream path when the configuration is wrong.
 - RTSP errors affect live video.
 - MQTT errors affect sensor state.
 - Frigate HTTP errors affect discovery and snapshots.

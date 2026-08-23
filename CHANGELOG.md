@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.0.4 - 2026-08-23
+
+- Request H.264 from every go2rtc RTSP stream, even when the H.264 producer has not started yet.
+- Keep forward audio in the filtered RTSP request without relying on active receiver metadata.
+- Test the lazy-producer case through Scrypted Rebroadcast and FFprobe.
+- Keep configured cameras online when go2rtc metadata is empty or temporarily unavailable.
+- Hold the last camera inventory through two failed Frigate refreshes before reporting cameras offline.
+- Verify that Rebroadcast keeps its go2rtc consumers and H.264 producers active after every downstream viewer closes.
+
+## 0.0.3 - 2026-08-23
+
+- Inspect each go2rtc producer separately during camera discovery.
+- Prefer an available H.264 receiver and add an H.264 codec filter to its RTSP URL.
+- Keep camera backchannel senders out of forward video and audio metadata.
+
 ## 0.0.2 - 2026-08-23
 
 - License the project under MIT.

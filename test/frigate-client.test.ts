@@ -77,7 +77,7 @@ describe('FrigateClient', () => {
       restreamAvailable: true,
       mainStream: {
         id: 'front_door',
-        rtspUrl: 'rtsp://frigate.invalid:8554/front_door',
+        rtspUrl: 'rtsp://frigate.invalid:8554/front_door?video=h264&audio',
         width: 1920,
         height: 1080,
         videoCodec: 'h264',
@@ -97,6 +97,106 @@ describe('FrigateClient', () => {
     });
   });
 
+  it('selects an H.264 producer when HEVC appears first in one go2rtc stream', async () => {
+    globalThis.fetch = vi.fn(async input => {
+      const url = new URL(String(input));
+      if (url.pathname === '/api/config') {
+        return Response.json({
+          cameras: {
+            camera_1: {
+              live: { streams: { Default: 'Camera-1' } },
+            },
+          },
+        });
+      }
+      if (url.pathname === '/api/go2rtc/streams') {
+        return Response.json({
+          'Camera-1': {
+            producers: [
+              {
+                url: 'onvif://onvif:pass@camera.invalid?subtype=Profile_1',
+                receivers: [
+                  { codec: { codec_type: 'video', codec_name: 'hevc', width: 3840, height: 2160 } },
+                  { codec: { codec_type: 'audio', codec_name: 'aac', sample_rate: 16000 } },
+                ],
+              },
+              {
+                url: 'isapi://user:pass@camera.invalid:80/',
+                senders: [{ codec: { codec_type: 'audio', codec_name: 'pcm_alaw', sample_rate: 8000 } }],
+              },
+              {
+                url: 'ffmpeg:Camera-1#video=h264/cuda',
+                receivers: [
+                  { codec: { codec_type: 'video', codec_name: 'h264', width: 1920, height: 1080 } },
+                ],
+              },
+            ],
+          },
+        });
+      }
+      return new Response('not found', { status: 404 });
+    }) as typeof fetch;
+    const client = new FrigateClient(providerConfig(), {} as MediaManager);
+
+    const result = await client.discoverCameras();
+
+    expect(result.cameras[0]?.mainStream).toMatchObject({
+      id: 'Camera-1',
+      rtspUrl: 'rtsp://frigate.invalid:8554/Camera-1?video=h264&audio',
+      width: 1920,
+      height: 1080,
+      videoCodec: 'h264',
+      audioCodec: 'aac',
+      audioSampleRate: 16000,
+    });
+  });
+
+  it('forces H.264 while the configured transcoder has no receiver metadata yet', async () => {
+    globalThis.fetch = vi.fn(async input => {
+      const url = new URL(String(input));
+      if (url.pathname === '/api/config') {
+        return Response.json({
+          cameras: {
+            camera_1: {
+              live: { streams: { Default: 'Camera-1' } },
+            },
+          },
+        });
+      }
+      if (url.pathname === '/api/go2rtc/streams') {
+        return Response.json({
+          'Camera-1': {
+            producers: [
+              {
+                url: 'onvif://onvif:pass@camera.invalid?subtype=Profile_1',
+                receivers: [
+                  { codec: { codec_type: 'video', codec_name: 'hevc', width: 3840, height: 2160 } },
+                  { codec: { codec_type: 'audio', codec_name: 'aac', sample_rate: 16000 } },
+                ],
+              },
+              {
+                url: 'ffmpeg:Camera-1#video=h264/cuda',
+              },
+            ],
+          },
+        });
+      }
+      return new Response('not found', { status: 404 });
+    }) as typeof fetch;
+    const client = new FrigateClient(providerConfig(), {} as MediaManager);
+
+    const result = await client.discoverCameras();
+
+    expect(result.cameras[0]?.mainStream).toMatchObject({
+      id: 'Camera-1',
+      rtspUrl: 'rtsp://frigate.invalid:8554/Camera-1?video=h264&audio',
+      width: 3840,
+      height: 2160,
+      videoCodec: 'h264',
+      audioCodec: 'aac',
+    });
+  });
+
   it('keeps cameras discoverable when no go2rtc restream exists', async () => {
     globalThis.fetch = vi.fn(async input => {
       const url = new URL(String(input));
@@ -111,6 +211,59 @@ describe('FrigateClient', () => {
       cameraName: 'garage',
       restreamAvailable: false,
       mainStream: { id: 'garage' },
+    });
+  });
+
+  it('keeps configured lazy restreams available when the go2rtc inventory is empty', async () => {
+    globalThis.fetch = vi.fn(async input => {
+      const url = new URL(String(input));
+      if (url.pathname === '/api/config') {
+        return Response.json({
+          cameras: {
+            camera_1: {
+              live: { streams: { Default: 'Camera-1' } },
+            },
+          },
+        });
+      }
+      return Response.json({});
+    }) as typeof fetch;
+    const client = new FrigateClient(providerConfig(), {} as MediaManager);
+
+    const result = await client.discoverCameras();
+
+    expect(result.cameras[0]).toMatchObject({
+      cameraName: 'camera_1',
+      restreamAvailable: true,
+      mainStream: {
+        id: 'Camera-1',
+        rtspUrl: 'rtsp://frigate.invalid:8554/Camera-1?video=h264&audio',
+      },
+    });
+  });
+
+  it('uses Frigate stream configuration when go2rtc metadata is temporarily unavailable', async () => {
+    globalThis.fetch = vi.fn(async input => {
+      const url = new URL(String(input));
+      if (url.pathname === '/api/config') {
+        return Response.json({
+          cameras: {
+            camera_1: {
+              live: { streams: { Default: 'Camera-1' } },
+            },
+          },
+        });
+      }
+      return new Response('temporarily unavailable', { status: 503 });
+    }) as typeof fetch;
+    const client = new FrigateClient(providerConfig(), {} as MediaManager);
+
+    const result = await client.discoverCameras();
+
+    expect(result.warning).toContain('go2rtc stream metadata unavailable');
+    expect(result.cameras[0]).toMatchObject({
+      restreamAvailable: true,
+      mainStream: { id: 'Camera-1', videoCodec: 'h264' },
     });
   });
 

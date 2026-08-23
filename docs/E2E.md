@@ -16,7 +16,7 @@ Run the test:
 npm run test:e2e:scrypted-core
 ```
 
-The script starts Scrypted Server 0.143.0 and installs the Core UI, HomeKit, Rebroadcast, WebRTC, Snapshot, and Diagnostics plugins. It also starts go2rtc v1.9.14, a two-camera Frigate API fixture, an MQTT broker, and four FFmpeg video streams.
+The script starts Scrypted Server 0.143.0 and installs the Core UI, HomeKit, Rebroadcast, WebRTC, Snapshot, and Diagnostics plugins. It also starts go2rtc v1.9.14, a two-camera Frigate API fixture, an MQTT broker, and five FFmpeg video producers.
 
 The test checks these operations:
 
@@ -25,13 +25,16 @@ The test checks these operations:
 3. Removing `side_yard` removes its Scrypted device. Adding it again restores the same native id.
 4. Provider and camera settings appear on the correct device pages.
 5. The Doorbell has press and tamper controls. The Camera does not.
-6. Both cameras return main and sub streams plus snapshots.
-7. Rebroadcast creates four RTSP URLs. FFprobe checks their codecs and resolutions.
-8. MQTT updates motion on both cameras, audio on the enabled camera, and press and tamper on the Doorbell.
-9. Talkback reads a HomeKit-style Opus source, encodes PCMA in the bridge, routes it directly through go2rtc, and writes the camera-facing payload.
-10. HomeKit loads both cameras in standalone accessory mode.
+6. The Frigate API reports an active HEVC producer while the configured H.264 producer has no receiver metadata. The raw bridge input still requests `video=h264&audio`.
+7. Both cameras return main and sub streams plus snapshots.
+8. An empty go2rtc inventory and a temporary inventory error leave both configured cameras online.
+9. Rebroadcast creates four RTSP URLs. FFprobe confirms H.264 and checks each resolution.
+10. After every FFprobe viewer closes, both cameras remain online. go2rtc still has one Scrypted consumer and an active H.264 producer for all four prebuffered streams.
+11. MQTT updates motion on both cameras, audio on the enabled camera, and press and tamper on the Doorbell.
+12. Talkback reads a HomeKit-style Opus source, encodes PCMA in the bridge, routes it directly through go2rtc, and writes the camera-facing payload.
+13. HomeKit loads both cameras in standalone accessory mode.
 
-The script prints its artifact directory. That directory contains process logs, stream probes, settings data, snapshot sizes, talkback data, and the Scrypted runtime report.
+The script prints its artifact directory. That directory contains process logs, stream probes, settings data, snapshot sizes, talkback data, the Scrypted runtime report, and `viewer-close.json` with the post-disconnect Scrypted and go2rtc state.
 
 ## go2rtc version test
 

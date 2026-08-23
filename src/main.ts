@@ -19,6 +19,7 @@ import {
   storeSetting,
 } from './config';
 import { FrigateClient } from './frigate-client';
+import { DISCOVERY_FAILURES_BEFORE_OFFLINE, DiscoveryHealth } from './discovery-health';
 import { Go2rtcIntercom, IntercomIngressRegistry, ScryptedFfmpegAudioSourceFactory } from './intercom';
 import { MqttBridgeEvents } from './mqtt-camera-events';
 import {
@@ -38,6 +39,7 @@ class FrigateCameraProvider extends ScryptedDeviceBase implements DeviceProvider
   private frigate: FrigateClient;
   private topicPrefix = 'frigate';
   private bridgeOnline = false;
+  private readonly discoveryHealth = new DiscoveryHealth();
   private discoveryStatus = 'Configure the Frigate API URL, then refresh discovery.';
   private mqtt?: MqttBridgeEvents;
   private mqttFingerprint = '';
@@ -132,6 +134,7 @@ class FrigateCameraProvider extends ScryptedDeviceBase implements DeviceProvider
     this.frigate = new FrigateClient(this.config, mediaManager);
     if (!this.config.frigateBaseUrl) {
       this.bridgeOnline = false;
+      this.discoveryHealth.reset();
       this.discoveryStatus = 'Frigate API URL is not configured.';
       this.discovered.clear();
       await this.syncImportedCameras(false);
@@ -149,17 +152,22 @@ class FrigateCameraProvider extends ScryptedDeviceBase implements DeviceProvider
       }
       this.discovered = next;
       this.bridgeOnline = true;
+      this.discoveryHealth.succeeded();
       this.topicPrefix = result.topicPrefix;
       const missingRestreams = result.cameras.filter(camera => !camera.restreamAvailable).length;
-      this.discoveryStatus = `${result.cameras.length} Frigate camera(s) discovered${missingRestreams ? `; ${missingRestreams} missing go2rtc restreams` : ''}.`;
+      const summary = `${result.cameras.length} Frigate camera(s) discovered${missingRestreams ? `; ${missingRestreams} without configured go2rtc restreams` : ''}.`;
+      this.discoveryStatus = result.warning ? `${summary} ${result.warning}.` : summary;
       await this.syncImportedCameras(true);
     }
     catch (error) {
-      this.bridgeOnline = false;
       const message = error instanceof Error ? error.message : String(error);
-      this.discoveryStatus = `Discovery failed: ${message}`;
+      const state = this.discoveryHealth.failed(this.discovered.size > 0);
+      this.bridgeOnline = state.online;
+      this.discoveryStatus = state.usingLastKnownInventory
+        ? `Discovery failed: ${message}. Keeping the last camera inventory online while Frigate recovers (${state.consecutiveFailures}/${DISCOVERY_FAILURES_BEFORE_OFFLINE}).`
+        : `Discovery failed: ${message}. Cameras are offline after ${state.consecutiveFailures} consecutive failure(s).`;
       this.console.error('Frigate camera discovery failed', error);
-      await this.syncImportedCameras(false);
+      await this.syncImportedCameras(this.bridgeOnline);
     }
   }
 

@@ -10,3 +10,4 @@ src/
 tsconfig.json
 coverage/
 *.log
+* 2.*
