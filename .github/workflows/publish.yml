@@ -1,0 +1,54 @@
+name: Publish to npm
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: npm-publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out the release tag
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install an OIDC-capable npm CLI
+        run: npm install --global npm@11.6.2
+
+      - name: Match the tag to package.json
+        shell: bash
+        run: |
+          package_version="$(node -p "require('./package.json').version")"
+          if ! [[ "$package_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "package.json must contain a stable semantic version, got $package_version" >&2
+            exit 1
+          fi
+          if [ "$GITHUB_REF_NAME" != "v$package_version" ]; then
+            echo "tag $GITHUB_REF_NAME does not match package.json version $package_version" >&2
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify the package
+        run: npm run verify
+
+      - name: Publish
+        run: npm publish --access public
