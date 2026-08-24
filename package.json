@@ -9,12 +9,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/johnnybyzhang/scrypted-frigate.git"
+    "url": "https://github.com/Johnnybyzhang/scrypted-frigate"
   },
   "bugs": {
-    "url": "https://github.com/johnnybyzhang/scrypted-frigate/issues"
+    "url": "https://github.com/Johnnybyzhang/scrypted-frigate/issues"
   },
-  "homepage": "https://github.com/johnnybyzhang/scrypted-frigate#readme",
+  "homepage": "https://github.com/Johnnybyzhang/scrypted-frigate#readme",
   "keywords": [
     "scrypted",
     "plugin",
