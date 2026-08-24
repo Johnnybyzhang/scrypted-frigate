@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Check out the release tag
+      - name: Check out source
         uses: actions/checkout@v7.0.1
 
       - name: Set up Node.js
@@ -76,7 +76,7 @@ jobs:
 
       - name: Stage the commit build
         if: github.ref == 'refs/heads/main'
-        run: npm stage publish . --access public --tag dev --loglevel verbose
+        run: npm stage publish . --access public --tag dev
 
       - name: Publish the tagged version
         if: startsWith(github.ref, 'refs/tags/')
