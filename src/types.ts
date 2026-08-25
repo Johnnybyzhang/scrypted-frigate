@@ -21,7 +21,9 @@ export interface CameraConfig {
   enableIntercom: boolean;
   deviceAvailabilityTopic: string;
   doorbellTopic: string;
+  doorbellTriggerRegex: string;
   tamperTopic: string;
+  tamperTriggerRegex: string;
   doorbellPulseMs: number;
   tamperPulseMs: number;
 }

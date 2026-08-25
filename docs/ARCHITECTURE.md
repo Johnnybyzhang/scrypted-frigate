@@ -58,7 +58,7 @@ One MQTT client subscribes to the union of routes for all selected cameras.
 
 The audio route exists when Frigate enables audio detection for that camera. Doorbell devices can add availability, press, and tamper topics.
 
-Motion and audio are level states, so retained messages are accepted. Press and tamper are edge events. The router rejects retained edge messages and deduplicates MQTT redelivery by event id, timestamp, or message id.
+Motion and audio are level states, so retained messages are accepted. Frigate motion uses only `ON` and `OFF`; the camera starts off and MQTT disconnect clears it. Press and tamper are edge events. Common active values trigger directly. Optional per-device regexes match raw or compact JSON payloads. Inactive values, including `0`, do not trigger an edge. The router rejects retained edge messages and deduplicates MQTT redelivery by event id, timestamp, or message id.
 
 ## Talkback
 

@@ -10,6 +10,30 @@ export function parseBinaryPayload(payload: Buffer | string): boolean | undefine
   return undefined;
 }
 
+export function parseFrigateMotionPayload(payload: Buffer | string): boolean | undefined {
+  const normalized = payload.toString().trim().toUpperCase();
+  if (normalized === 'ON')
+    return true;
+  if (normalized === 'OFF')
+    return false;
+  return undefined;
+}
+
+export function matchesTriggerPayload(payload: Buffer | string, triggerRegex = ''): boolean {
+  const variants = payloadVariants(payload);
+  if (variants.some(isSimpleTriggerPayload))
+    return true;
+  const pattern = triggerRegex.trim();
+  if (!pattern)
+    return false;
+  const regex = new RegExp(pattern, 'i');
+  return variants.some(value => regex.test(value));
+}
+
+export function frigateMotionTopic(topicPrefix: string, cameraName: string): string {
+  return joinTopic(topicPrefix, cameraName, 'motion');
+}
+
 export function extractEventKey(payload: Buffer): string | undefined {
   if (!payload.length || payload.length > 64 * 1024)
     return undefined;
@@ -100,7 +124,7 @@ export class MqttBridgeEvents {
       this.options.onLog?.(`Ignored oversized MQTT payload on ${topic}`);
       return;
     }
-    const globalAvailability = `${this.topicPrefix}/available`;
+    const globalAvailability = joinTopic(this.topicPrefix, 'available');
     if (topic === globalAvailability) {
       const value = parseBinaryPayload(payload);
       if (value !== undefined)
@@ -109,13 +133,15 @@ export class MqttBridgeEvents {
     }
 
     for (const route of this.routes) {
-      if (topic === `${this.topicPrefix}/${route.cameraName}/motion`) {
-        const value = parseBinaryPayload(payload);
+      if (topic === frigateMotionTopic(this.topicPrefix, route.cameraName)) {
+        const value = parseFrigateMotionPayload(payload);
         if (value !== undefined)
           route.sink.setMotion(value);
+        else
+          this.options.onLog?.(`Ignored Frigate motion payload on ${topic}; expected ON or OFF`);
         continue;
       }
-      if (route.audioDetection && topic === `${this.topicPrefix}/${route.cameraName}/audio/all`) {
+      if (route.audioDetection && topic === joinTopic(this.topicPrefix, route.cameraName, 'audio', 'all')) {
         const value = parseBinaryPayload(payload);
         if (value !== undefined)
           route.sink.setAudio(value);
@@ -130,22 +156,24 @@ export class MqttBridgeEvents {
         continue;
       }
       if (route.config.doorbellTopic && topic === route.config.doorbellTopic) {
-        if (!packet.retain && !(packet.dup && packet.messageId === undefined))
+        if (!packet.retain && !(packet.dup && packet.messageId === undefined)
+          && this.matchesEdgePayload(route, 'doorbell', payload, route.config.doorbellTriggerRegex))
           route.sink.pulseDoorbell(this.edgeEventKey(payload, packet));
         continue;
       }
       if (route.config.tamperTopic && topic === route.config.tamperTopic
-        && !packet.retain && !(packet.dup && packet.messageId === undefined))
+        && !packet.retain && !(packet.dup && packet.messageId === undefined)
+        && this.matchesEdgePayload(route, 'tamper', payload, route.config.tamperTriggerRegex))
         route.sink.pulseTamper(this.edgeEventKey(payload, packet));
     }
   }
 
   private topics(): string[] {
-    const topics = [`${this.topicPrefix}/available`];
+    const topics = [joinTopic(this.topicPrefix, 'available')];
     for (const route of this.routes) {
-      topics.push(`${this.topicPrefix}/${route.cameraName}/motion`);
+      topics.push(frigateMotionTopic(this.topicPrefix, route.cameraName));
       if (route.audioDetection)
-        topics.push(`${this.topicPrefix}/${route.cameraName}/audio/all`);
+        topics.push(joinTopic(this.topicPrefix, route.cameraName, 'audio', 'all'));
       if (route.config.deviceType === 'Doorbell') {
         topics.push(
           route.config.deviceAvailabilityTopic,
@@ -167,4 +195,48 @@ export class MqttBridgeEvents {
         ? undefined
         : `mqtt:${this.connectionGeneration}:${packet.messageId}`);
   }
+
+  private matchesEdgePayload(
+    route: CameraMqttRoute,
+    event: 'doorbell' | 'tamper',
+    payload: Buffer,
+    triggerRegex: string,
+  ): boolean {
+    try {
+      return matchesTriggerPayload(payload, triggerRegex);
+    }
+    catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.options.onLog?.(`Invalid ${event} trigger regex for ${route.cameraName}: ${message}`);
+      return false;
+    }
+  }
+}
+
+function payloadVariants(payload: Buffer | string): string[] {
+  const raw = payload.toString().trim();
+  const variants = new Set([raw]);
+  if (!raw)
+    return [...variants];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    const compact = JSON.stringify(parsed);
+    if (compact !== undefined)
+      variants.add(compact);
+    if (typeof parsed === 'string' || typeof parsed === 'number' || typeof parsed === 'boolean')
+      variants.add(String(parsed));
+  }
+  catch {
+    // Non-JSON payloads are matched as plain text.
+  }
+  return [...variants];
+}
+
+function isSimpleTriggerPayload(payload: string): boolean {
+  return ['on', 'true', '1'].includes(payload.trim().toLowerCase());
+}
+
+function joinTopic(topicPrefix: string, ...parts: string[]): string {
+  const root = topicPrefix.replace(/\/+$/, '');
+  return [root, ...parts.map(part => part.replace(/^\/+|\/+$/g, ''))].join('/');
 }

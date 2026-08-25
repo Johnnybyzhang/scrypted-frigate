@@ -14,12 +14,14 @@ For every imported camera:
 - Close every live viewer. Confirm the camera stays online and Rebroadcast keeps the selected streams prebuffered.
 - Request a snapshot.
 - Trigger motion through MQTT.
+- Confirm `ON` sets motion and `OFF` clears it on `<prefix>/<camera>/motion`.
 - Confirm the device remains online after a Frigate refresh.
 - Enable the HomeKit mixin in standalone accessory mode.
 
 For a Doorbell:
 
 - Trigger press and tamper events through their configured MQTT topics.
+- Confirm plain active values and each configured JSON regex trigger. Confirm `OFF`, `0`, `false`, and `tamper_alarm:0` do not trigger.
 - Confirm retained press and tamper messages are ignored.
 - Start talkback with AAC-ELD and Opus HomeKit sessions. Confirm the camera receives PCMA or the Opus fallback.
 - Stop talkback and confirm the bridge FFmpeg process exits and the go2rtc playback route clears.

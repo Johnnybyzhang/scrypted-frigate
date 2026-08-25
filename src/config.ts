@@ -31,7 +31,9 @@ export const cameraSettingKeys = {
   enableIntercom: 'enableIntercom',
   deviceAvailabilityTopic: 'deviceAvailabilityTopic',
   doorbellTopic: 'doorbellTopic',
+  doorbellTriggerRegex: 'doorbellTriggerRegex',
   tamperTopic: 'tamperTopic',
+  tamperTriggerRegex: 'tamperTriggerRegex',
   doorbellPulseMs: 'doorbellPulseMs',
   tamperPulseMs: 'tamperPulseMs',
 } as const;
@@ -108,7 +110,9 @@ export function readCameraConfig(storage: KeyValueStorage, cameraName: string): 
     enableIntercom: readBoolean(storage, cameraSettingKeys.enableIntercom),
     deviceAvailabilityTopic: read(storage, cameraSettingKeys.deviceAvailabilityTopic),
     doorbellTopic: read(storage, cameraSettingKeys.doorbellTopic),
+    doorbellTriggerRegex: read(storage, cameraSettingKeys.doorbellTriggerRegex),
     tamperTopic: read(storage, cameraSettingKeys.tamperTopic),
+    tamperTriggerRegex: read(storage, cameraSettingKeys.tamperTriggerRegex),
     doorbellPulseMs: positiveInteger(read(storage, cameraSettingKeys.doorbellPulseMs), 1500, 250, 30_000),
     tamperPulseMs: positiveInteger(read(storage, cameraSettingKeys.tamperPulseMs), 10_000, 1000, 300_000),
   };
@@ -200,7 +204,23 @@ export function cameraSettings(config: CameraConfig, camera: DiscoveredCamera): 
     settings.push(
       { key: cameraSettingKeys.deviceAvailabilityTopic, title: 'Device Availability Topic', group: 'Doorbell Events', value: config.deviceAvailabilityTopic, placeholder: 'site/front_door/availability' },
       { key: cameraSettingKeys.doorbellTopic, title: 'Doorbell Press Topic', group: 'Doorbell Events', value: config.doorbellTopic, placeholder: 'site/front_door/doorbell' },
+      {
+        key: cameraSettingKeys.doorbellTriggerRegex,
+        title: 'Doorbell Trigger Regex',
+        group: 'Doorbell Events',
+        value: config.doorbellTriggerRegex,
+        placeholder: '"kind":"doorbell_ring".*"button_click":1',
+        description: 'Optional case-insensitive JavaScript regex. JSON is also tested in compact form, so whitespace does not matter. ON, 1, and true trigger without a regex.',
+      },
       { key: cameraSettingKeys.tamperTopic, title: 'Tamper Topic', group: 'Doorbell Events', value: config.tamperTopic, placeholder: 'site/front_door/tamper' },
+      {
+        key: cameraSettingKeys.tamperTriggerRegex,
+        title: 'Tamper Trigger Regex',
+        group: 'Doorbell Events',
+        value: config.tamperTriggerRegex,
+        placeholder: '"kind":"tamper".*"tamper_alarm":1',
+        description: 'Optional case-insensitive JavaScript regex. JSON is also tested in compact form, so whitespace does not matter. ON, 1, and true trigger without a regex.',
+      },
       { key: cameraSettingKeys.doorbellPulseMs, title: 'Doorbell Pulse (ms)', group: 'Doorbell Events', value: config.doorbellPulseMs, type: 'number' },
       { key: cameraSettingKeys.tamperPulseMs, title: 'Tamper Pulse (ms)', group: 'Doorbell Events', value: config.tamperPulseMs, type: 'number' },
     );

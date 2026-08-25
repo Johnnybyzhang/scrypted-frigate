@@ -54,12 +54,17 @@ assert.equal(sdk.serverVersion, '0.143.0');
 assert.equal(front.name, 'Front Door E2E');
 assert.equal(front.type, 'Doorbell');
 assert.equal(front.online, true);
+assert.equal(front.motionDetected, false);
+assert.equal(front.audioDetected, false);
+assert.equal(front.binaryState, false);
+assert.equal(front.tampered, false);
 for (const iface of ['VideoCamera', 'Camera', 'MotionSensor', 'AudioSensor', 'BinarySensor', 'TamperSensor', 'Intercom', 'Online', 'Settings'])
   assert(front.providedInterfaces.includes(iface), `front door is missing provided interface: ${iface}`);
 
 assert.equal(side.name, 'Side Yard E2E');
 assert.equal(side.type, 'Camera');
 assert.equal(side.online, true);
+assert.equal(side.motionDetected, false);
 for (const iface of ['VideoCamera', 'Camera', 'MotionSensor', 'Online', 'Settings'])
   assert(side.providedInterfaces.includes(iface), `ordinary camera is missing provided interface: ${iface}`);
 for (const iface of ['AudioSensor', 'BinarySensor', 'TamperSensor', 'Intercom'])
@@ -141,7 +146,7 @@ const snapshots = {
 
 const providerSettings = await provider.getSettings();
 const providerKeys = providerSettings.map(setting => setting.key).filter(Boolean);
-for (const key of ['doorbellTopic', 'tamperTopic', 'deviceAvailabilityTopic', 'motionTopic', 'audioTopic', 'mainStreamUrl', 'subStreamUrl'])
+for (const key of ['doorbellTopic', 'doorbellTriggerRegex', 'tamperTopic', 'tamperTriggerRegex', 'deviceAvailabilityTopic', 'motionTopic', 'audioTopic', 'mainStreamUrl', 'subStreamUrl'])
   assert(!providerKeys.includes(key), `provider leaked per-camera setting ${key}`);
 
 const frontSettings = await front.getSettings();
@@ -151,7 +156,7 @@ for (const settings of [frontSettings, sideSettings]) {
   for (const key of ['mqttUrl', 'mqttUsername', 'mqttPassword', 'frigateBaseUrl', 'go2rtcApiUrl'])
     assert(!keys.includes(key), `camera leaked provider setting ${key}`);
 }
-for (const key of ['doorbellTopic', 'tamperTopic', 'deviceAvailabilityTopic']) {
+for (const key of ['doorbellTopic', 'doorbellTriggerRegex', 'tamperTopic', 'tamperTriggerRegex', 'deviceAvailabilityTopic']) {
   assert(frontSettings.some(setting => setting.key === key), `doorbell camera is missing ${key}`);
   assert(!sideSettings.some(setting => setting.key === key), `ordinary camera exposed ${key}`);
 }
@@ -173,8 +178,9 @@ await publish('frigate/available', 'online');
 await publish('frigate/front_door/motion', 'ON');
 await publish('frigate/front_door/audio/all', 'ON');
 await publish('frigate/side_yard/motion', 'ON');
-await publish('site/front_door/doorbell', '{"id":"scrypted-core-e2e-doorbell"}');
-await publish('site/front_door/tamper', '{"id":"scrypted-core-e2e-tamper"}');
+await publish('site/front_door/doorbell', '{"time":"2026-08-25T11:48:30.716184535Z","event":{"kind":"doorbell_ring","action":"report","value":1,"raw":{"action":"report","button_click":1}}}');
+await publish('site/front_door/tamper', '{"time":"2026-08-25T12:00:00.000000000Z","event":{"kind":"tamper","action":"report","value":1,"raw":{"action":"report","tamper_alarm":1}}}');
+await publish('site/front_door/tamper', '{"time":"2026-08-20T08:09:14.686955864Z","event":{"kind":"tamper","action":"report","value":0,"raw":{"action":"report","tamper_alarm":0}}}');
 await waitFor('multi-camera MQTT state fanout', () => front.motionDetected === true
   && front.audioDetected === true
   && front.binaryState === true

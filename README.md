@@ -46,7 +46,7 @@ Camera settings stay on the camera.
 | Camera type | Settings |
 | --- | --- |
 | Camera | Scrypted name, device type, intercom switch, discovered stream details |
-| Doorbell | Camera settings plus availability, press, and tamper topics |
+| Doorbell | Camera settings plus availability, press, and tamper topics with payload regexes |
 
 Frigate MQTT topics come from the Frigate prefix and camera name:
 
@@ -57,6 +57,19 @@ Frigate MQTT topics come from the Frigate prefix and camera name:
 ```
 
 The audio topic is active when Frigate enables audio detection for that camera. Doorbell press and tamper topics are configured on the Doorbell device.
+
+Frigate motion is a level state. The bridge subscribes to the exact API-derived `<prefix>/<camera>/motion` topic, sets `MotionSensor` when Frigate publishes `ON`, and clears it on `OFF`. The initial state is off. Losing the MQTT connection also clears motion so a disconnected broker cannot leave HomeKit stuck in motion.
+
+Doorbell and tamper inputs are edge events. Plain `ON`, `1`, or `true` payloads trigger without extra setup. `OFF`, `0`, and `false` do nothing. Each Doorbell device also has a case-insensitive trigger regex for JSON or other payloads. The plugin tests regexes against the trimmed payload and compact JSON, so JSON whitespace does not matter.
+
+For the supplied JSON report shapes, use these patterns:
+
+```text
+Doorbell: "kind":"doorbell_ring".*"button_click":1
+Tamper:   "kind":"tamper".*"tamper_alarm":1
+```
+
+`tamper_alarm:0` means no tamper and does not match the tamper pattern.
 
 ## Scrypted interfaces
 

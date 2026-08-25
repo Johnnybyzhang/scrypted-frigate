@@ -53,6 +53,7 @@ export class FrigateCamera extends ScryptedDeviceBase implements
   private lastFrigateAvailability?: boolean;
   private lastDeviceAvailability?: boolean;
   private lastMqttConnected?: boolean;
+  private destroyed = false;
 
   constructor(
     private readonly provider: BridgeProviderHost,
@@ -63,6 +64,7 @@ export class FrigateCamera extends ScryptedDeviceBase implements
     this.config = readCameraConfig(this.storage, discovery.cameraName);
     this.doorbellPulse = this.createDoorbellPulse();
     this.tamperPulse = this.createTamperPulse();
+    this.initializeStates();
   }
 
   get cameraName(): string {
@@ -75,6 +77,21 @@ export class FrigateCamera extends ScryptedDeviceBase implements
 
   updateDiscovery(discovery: DiscoveredCamera): void {
     this.discovery = discovery;
+  }
+
+  initializeStates(): void {
+    if (this.destroyed)
+      return;
+    if (this.motionDetected === undefined)
+      this.motionDetected = false;
+    if (this.discovery.audioDetection && this.audioDetected === undefined)
+      this.audioDetected = false;
+    if (this.config.deviceType === ScryptedDeviceType.Doorbell) {
+      if (this.binaryState === undefined)
+        this.binaryState = false;
+      if (this.tampered === undefined)
+        this.tampered = false;
+    }
   }
 
   setBridgeOnline(online: boolean): void {
@@ -200,6 +217,7 @@ export class FrigateCamera extends ScryptedDeviceBase implements
   }
 
   async destroy(): Promise<void> {
+    this.destroyed = true;
     this.doorbellPulse.stop();
     this.tamperPulse.stop();
     await this.provider.stopIntercom();
@@ -237,9 +255,16 @@ export class FrigateCamera extends ScryptedDeviceBase implements
   }
 
   setMqttConnected(connected: boolean): void {
+    if (this.destroyed)
+      return;
     if (this.lastMqttConnected !== connected)
       this.console.info(`MQTT transport: ${connected ? 'connected' : 'disconnected'}`);
     this.lastMqttConnected = connected;
+    if (!connected) {
+      this.motionDetected = false;
+      if (this.discovery.audioDetection)
+        this.audioDetected = false;
+    }
   }
 
   private createDoorbellPulse(): EdgePulse {

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Preserve Frigate motion as an `ON` and `OFF` level state on the API-derived camera topic.
+- Initialize motion as off and clear stale motion when MQTT disconnects.
+- Add per-doorbell regex matching for press and tamper JSON payloads while retaining simple active values.
+
 ## 0.0.4 - 2026-08-23
 
 - Request H.264 from every go2rtc RTSP stream, even when the H.264 producer has not started yet.

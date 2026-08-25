@@ -79,6 +79,8 @@ describe('per-camera configuration', () => {
   it('shows doorbell topics only after the camera type is Doorbell', () => {
     const storage = new MemoryStorage();
     storage.setItem(cameraSettingKeys.deviceType, ScryptedDeviceType.Doorbell);
+    storage.setItem(cameraSettingKeys.doorbellTriggerRegex, '"button_click":1');
+    storage.setItem(cameraSettingKeys.tamperTriggerRegex, '"tamper_alarm":1');
     storage.setItem(cameraSettingKeys.doorbellPulseMs, '1');
     storage.setItem(cameraSettingKeys.tamperPulseMs, '9999999');
     const config = readCameraConfig(storage, 'front_door');
@@ -86,7 +88,11 @@ describe('per-camera configuration', () => {
 
     expect(keys).toContain(cameraSettingKeys.deviceAvailabilityTopic);
     expect(keys).toContain(cameraSettingKeys.doorbellTopic);
+    expect(keys).toContain(cameraSettingKeys.doorbellTriggerRegex);
     expect(keys).toContain(cameraSettingKeys.tamperTopic);
+    expect(keys).toContain(cameraSettingKeys.tamperTriggerRegex);
+    expect(config.doorbellTriggerRegex).toBe('"button_click":1');
+    expect(config.tamperTriggerRegex).toBe('"tamper_alarm":1');
     expect(config.doorbellPulseMs).toBe(250);
     expect(config.tamperPulseMs).toBe(300_000);
   });

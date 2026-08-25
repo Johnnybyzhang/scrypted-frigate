@@ -81,7 +81,9 @@ for (const [key, value] of Object.entries({
   enableIntercom: true,
   deviceAvailabilityTopic: 'site/front_door/availability',
   doorbellTopic: 'site/front_door/doorbell',
+  doorbellTriggerRegex: '"kind":"doorbell_ring".*"button_click":1',
   tamperTopic: 'site/front_door/tamper',
+  tamperTriggerRegex: '"kind":"tamper".*"tamper_alarm":1',
 }))
   await front.putSetting(key, value);
 await front.putSetting('deviceType', 'Doorbell');
@@ -136,13 +138,13 @@ const providerKeys = providerSettings.map(setting => setting.key).filter(Boolean
 const frontKeys = frontSettings.map(setting => setting.key).filter(Boolean);
 const sideKeys = sideSettings.map(setting => setting.key).filter(Boolean);
 
-for (const key of ['doorbellTopic', 'tamperTopic', 'deviceAvailabilityTopic', 'mainStreamUrl', 'subStreamUrl', 'motionTopic', 'audioTopic'])
+for (const key of ['doorbellTopic', 'doorbellTriggerRegex', 'tamperTopic', 'tamperTriggerRegex', 'deviceAvailabilityTopic', 'mainStreamUrl', 'subStreamUrl', 'motionTopic', 'audioTopic'])
   assert(!providerKeys.includes(key), `provider leaked per-camera setting ${key}`);
 for (const key of ['mqttUrl', 'mqttUsername', 'mqttPassword', 'frigateBaseUrl', 'go2rtcApiUrl']) {
   assert(!frontKeys.includes(key), `front camera leaked provider setting ${key}`);
   assert(!sideKeys.includes(key), `side camera leaked provider setting ${key}`);
 }
-for (const key of ['doorbellTopic', 'tamperTopic', 'deviceAvailabilityTopic']) {
+for (const key of ['doorbellTopic', 'doorbellTriggerRegex', 'tamperTopic', 'tamperTriggerRegex', 'deviceAvailabilityTopic']) {
   assert(frontKeys.includes(key), `doorbell camera is missing ${key}`);
   assert(!sideKeys.includes(key), `ordinary camera exposed ${key}`);
 }

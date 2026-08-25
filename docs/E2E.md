@@ -30,7 +30,7 @@ The test checks these operations:
 8. An empty go2rtc inventory and a temporary inventory error leave both configured cameras online.
 9. Rebroadcast creates four RTSP URLs. FFprobe confirms H.264 and checks each resolution.
 10. After every FFprobe viewer closes, both cameras remain online. go2rtc still has one Scrypted consumer and an active H.264 producer for all four prebuffered streams.
-11. MQTT updates motion on both cameras, audio on the enabled camera, and press and tamper on the Doorbell.
+11. MQTT `ON` and `OFF` update motion on both cameras. JSON regexes match active doorbell and tamper reports while `tamper_alarm:0` remains inactive.
 12. Talkback reads a HomeKit-style Opus source, encodes PCMA in the bridge, routes it directly through go2rtc, and writes the camera-facing payload.
 13. HomeKit loads both cameras in standalone accessory mode.
 

@@ -217,6 +217,7 @@ class FrigateCameraProvider extends ScryptedDeviceBase implements DeviceProvider
       this.manifestFingerprint = manifestFingerprint;
       await deviceManager.onDevicesChanged({ devices });
     }
+    this.cameras.forEach(camera => camera.initializeStates());
     this.configureMqtt();
   }
 
@@ -238,7 +239,9 @@ class FrigateCameraProvider extends ScryptedDeviceBase implements DeviceProvider
         deviceType: route.config.deviceType,
         deviceAvailabilityTopic: route.config.deviceAvailabilityTopic,
         doorbellTopic: route.config.doorbellTopic,
+        doorbellTriggerRegex: route.config.doorbellTriggerRegex,
         tamperTopic: route.config.tamperTopic,
+        tamperTriggerRegex: route.config.tamperTriggerRegex,
       })),
     });
     if (mqttFingerprint === this.mqttFingerprint)

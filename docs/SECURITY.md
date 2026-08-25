@@ -4,7 +4,7 @@ Scrypted stores the Frigate token, MQTT password, and go2rtc password. Their set
 
 Talkback uses a random 192-bit URL token. The HTTP handler accepts one connection for that token, sets `no-store` and `nosniff` headers, and removes the token when playback stops. URLs and FFmpeg arguments stay out of plugin logs because HomeKit sessions can place short-lived credentials in them.
 
-The MQTT router accepts payloads up to 64 KiB. It ignores retained press and tamper messages. It also rejects duplicate edge events when the payload or MQTT packet supplies a stable id.
+The MQTT router accepts payloads up to 64 KiB. It ignores retained press and tamper messages. Doorbell and tamper regexes come from the local Scrypted device settings and run only on their exact configured topics. Invalid regexes are ignored and logged. The router also rejects duplicate edge events when the payload or MQTT packet supplies a stable id.
 
 Frigate motion and audio topics come from the API camera name and MQTT prefix. A Doorbell can add three exact topics for availability, press, and tamper. The router uses no wildcard subscriptions.
 
