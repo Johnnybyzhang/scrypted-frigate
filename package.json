@@ -1,6 +1,6 @@
 {
   "name": "@johnnybyzhang/scrypted-frigate",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Environment-agnostic multi-camera Frigate bridge for Scrypted Core and HomeKit Secure Video.",
   "license": "MIT",
   "author": {
@@ -9,7 +9,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/Johnnybyzhang/scrypted-frigate"
+    "url": "git+https://github.com/Johnnybyzhang/scrypted-frigate.git"
   },
   "bugs": {
     "url": "https://github.com/Johnnybyzhang/scrypted-frigate/issues"

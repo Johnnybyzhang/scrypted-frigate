@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.0.5 - 2026-08-26
 
 - Preserve Frigate motion as an `ON` and `OFF` level state on the API-derived camera topic.
 - Initialize motion as off and clear stale motion when MQTT disconnects.

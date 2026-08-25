@@ -1,6 +1,6 @@
 # Implementation status
 
-## Version 0.0.4
+## Version 0.0.5
 
 The provider discovers Frigate cameras through `/api/config` and `/api/go2rtc/streams`. Users select which cameras Scrypted creates. Each camera keeps a stable native id.
 
@@ -14,7 +14,7 @@ Shared Frigate, MQTT, and go2rtc settings live on the provider. Camera name, typ
 
 Every imported camera implements video, snapshots, motion, online state, and settings. Frigate audio detection adds an audio sensor. Doorbell mode adds press and tamper sensors. Intercom appears when it is enabled and go2rtc is configured.
 
-One MQTT connection handles all selected cameras. The router derives Frigate topics from the API response and subscribes to exact Doorbell topics.
+One MQTT connection handles all selected cameras. The router derives Frigate topics from the API response and subscribes to exact Doorbell topics. Frigate motion follows retained `ON` and `OFF` levels on `<prefix>/<camera>/motion`. Doorbell and tamper inputs accept plain active values or a per-device payload regex. Inactive values, including `tamper_alarm:0`, do not create edge events.
 
 The HomeKit plugin decrypts its AAC-ELD or Opus microphone stream before calling the bridge. The bridge's FFmpeg process decodes that input and encodes a PCMA camera target. It retries with low-delay Opus if go2rtc rejects PCMA. go2rtc reads PCMA directly. The Opus retry uses a copy-only FFmpeg remux inside go2rtc. The bridge handles every codec conversion. Both input paths use a 32-byte probe, zero analysis time, no input buffer, and low-delay flags.
 
@@ -32,7 +32,7 @@ The HomeKit plugin decrypts its AAC-ELD or Opus microphone stream before calling
 - Lazy H.264 producer selection when the API reports only active HEVC
 - Stable camera availability with an idle or temporarily unreadable go2rtc inventory
 - Persistent Rebroadcast consumers after every downstream viewer closes
-- MQTT motion, audio, press, and tamper events
+- MQTT motion `ON` and `OFF`, audio, plain edge payloads, JSON regex matches, and inactive tamper reports
 - HomeKit-style Opus source to PCMA camera target
 - Direct PCMA routing and copy-only Opus remuxing in go2rtc
 - HomeKit setup for Camera and Doorbell devices
