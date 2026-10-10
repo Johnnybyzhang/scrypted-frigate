@@ -167,6 +167,11 @@ class FrigateCameraProvider extends ScryptedDeviceBase implements DeviceProvider
         ? `Discovery failed: ${message}. Keeping the last camera inventory online while Frigate recovers (${state.consecutiveFailures}/${DISCOVERY_FAILURES_BEFORE_OFFLINE}).`
         : `Discovery failed: ${message}. Cameras are offline after ${state.consecutiveFailures} consecutive failure(s).`;
       this.console.error('Frigate camera discovery failed', error);
+      // On a cold start nothing has been discovered yet, so syncing would publish an
+      // empty device list and make Scrypted delete the existing camera devices and
+      // their settings. Leave them untouched until Frigate answers.
+      if (state.inventoryUnknown)
+        return;
       await this.syncImportedCameras(this.bridgeOnline);
     }
   }

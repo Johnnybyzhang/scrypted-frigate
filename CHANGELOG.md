@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Do not publish an empty device list when the first Frigate discovery fails after a plugin or Scrypted start. Scrypted previously deleted every camera device and its settings.
+
 ## 0.0.5 - 2026-08-26
 
 - Preserve Frigate motion as an `ON` and `OFF` level state on the API-derived camera topic.

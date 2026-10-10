@@ -4,6 +4,8 @@ export interface DiscoveryFailureState {
   consecutiveFailures: number;
   online: boolean;
   usingLastKnownInventory: boolean;
+  /** True when no camera inventory has ever been discovered, so the device list must not be synced. */
+  inventoryUnknown: boolean;
 }
 
 export class DiscoveryHealth {
@@ -21,6 +23,7 @@ export class DiscoveryHealth {
       consecutiveFailures: this.consecutiveFailures,
       online: usingLastKnownInventory,
       usingLastKnownInventory,
+      inventoryUnknown: !hasLastKnownInventory,
     };
   }
 
